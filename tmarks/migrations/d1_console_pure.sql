@@ -15,9 +15,11 @@ CREATE INDEX IF NOT EXISTS idx_bookmarks_user_deleted ON bookmarks(user_id, dele
 CREATE INDEX IF NOT EXISTS idx_bookmarks_pinned ON bookmarks(user_id, is_pinned, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_click_count ON bookmarks(user_id, click_count DESC);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_last_clicked ON bookmarks(user_id, last_clicked_at DESC);
-CREATE TABLE IF NOT EXISTS tags (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, color TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')), deleted_at TEXT, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, UNIQUE(user_id, name));
+CREATE TABLE IF NOT EXISTS tags (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, color TEXT, click_count INTEGER NOT NULL DEFAULT 0, last_clicked_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')), deleted_at TEXT, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, UNIQUE(user_id, name));
 CREATE INDEX IF NOT EXISTS idx_tags_user_name ON tags(user_id, LOWER(name));
 CREATE INDEX IF NOT EXISTS idx_tags_user_deleted ON tags(user_id, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_tags_click_count ON tags(user_id, click_count DESC);
+CREATE INDEX IF NOT EXISTS idx_tags_last_clicked ON tags(user_id, last_clicked_at DESC);
 CREATE TABLE IF NOT EXISTS bookmark_tags (bookmark_id TEXT NOT NULL, tag_id TEXT NOT NULL, user_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (bookmark_id, tag_id), FOREIGN KEY (bookmark_id) REFERENCES bookmarks(id) ON DELETE CASCADE, FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
 CREATE INDEX IF NOT EXISTS idx_bookmark_tags_tag_user ON bookmark_tags(tag_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_bookmark_tags_bookmark ON bookmark_tags(bookmark_id);

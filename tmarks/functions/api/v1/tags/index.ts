@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
       const userId = context.data.user_id
       const url = new URL(context.request.url)
 
-      const sortBy = url.searchParams.get('sort') || 'usage' // 'usage' or 'name'
+      const sortBy = url.searchParams.get('sort') || 'usage' // 'usage', 'name', or 'clicks'
 
       // 获取标签和使用计数
       let query = `
@@ -37,7 +37,10 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
 
       if (sortBy === 'name') {
         query += ' ORDER BY LOWER(t.name) ASC'
+      } else if (sortBy === 'clicks') {
+        query += ' ORDER BY t.click_count DESC, LOWER(t.name) ASC'
       } else {
+        // 默认按使用次数(bookmark_count)排序
         query += ' ORDER BY bookmark_count DESC, LOWER(t.name) ASC'
       }
 

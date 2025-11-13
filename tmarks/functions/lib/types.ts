@@ -5,9 +5,9 @@ export interface Env {
   ALLOW_REGISTRATION?: string
   JWT_SECRET: string
   ENCRYPTION_KEY: string
-  ENVIRONMENT: 'development' | 'production'
-  JWT_ACCESS_TOKEN_EXPIRES_IN: string
-  JWT_REFRESH_TOKEN_EXPIRES_IN: string
+  ENVIRONMENT?: string // 'development' | 'production'
+  JWT_ACCESS_TOKEN_EXPIRES_IN?: string
+  JWT_REFRESH_TOKEN_EXPIRES_IN?: string
 }
 
 export interface User {
@@ -56,6 +56,8 @@ export interface Tag {
   user_id: string
   name: string
   color: string | null
+  click_count: number
+  last_clicked_at: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

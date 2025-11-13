@@ -41,6 +41,20 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
       const isArchived = url.searchParams.get('archived') === 'true'
       const isPinned = url.searchParams.get('pinned') === 'true'
 
+      // 记录标签点击统计(异步执行,不阻塞主查询)
+      if (tagIds.length > 0) {
+        const now = new Date().toISOString()
+        Promise.all(
+          tagIds.map(tagId =>
+            context.env.DB.prepare(
+              'UPDATE tags SET click_count = click_count + 1, last_clicked_at = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+            )
+              .bind(now, now, tagId, userId)
+              .run()
+          )
+        ).catch(err => console.error('Failed to record tag clicks:', err))
+      }
+
       // 构建查询条件（不包含占位符的参数值）
       const conditions: string[] = ['b.user_id = ?', 'b.deleted_at IS NULL']
       const conditionParams: SQLParam[] = [userId]

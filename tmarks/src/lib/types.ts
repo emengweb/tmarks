@@ -119,6 +119,8 @@ export interface Tag {
   name: string
   color: string | null
   bookmark_count?: number
+  click_count?: number
+  last_clicked_at?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -221,7 +223,7 @@ export interface BookmarkQueryParams {
 }
 
 export interface TagQueryParams {
-  sort?: 'usage' | 'name'
+  sort?: 'usage' | 'name' | 'clicks'
 }
 
 // 批量操作类型

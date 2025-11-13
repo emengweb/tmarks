@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS tags (
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
   color TEXT,
+  click_count INTEGER NOT NULL DEFAULT 0,
+  last_clicked_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   deleted_at TEXT,
@@ -87,6 +89,8 @@ CREATE TABLE IF NOT EXISTS tags (
 
 CREATE INDEX idx_tags_user_name ON tags(user_id, LOWER(name));
 CREATE INDEX idx_tags_user_deleted ON tags(user_id, deleted_at);
+CREATE INDEX idx_tags_click_count ON tags(user_id, click_count DESC);
+CREATE INDEX idx_tags_last_clicked ON tags(user_id, last_clicked_at DESC);
 
 -- 书签-标签关联表
 CREATE TABLE IF NOT EXISTS bookmark_tags (

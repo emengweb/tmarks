@@ -13,8 +13,8 @@ interface TagSidebarProps {
   onTagLayoutChange: (layout: 'grid' | 'masonry') => void
   readOnly?: boolean
   availableTags?: Tag[]
-  tagSortBy?: 'usage' | 'name'
-  onTagSortChange?: (sortBy: 'usage' | 'name') => void
+  tagSortBy?: 'usage' | 'name' | 'clicks'
+  onTagSortChange?: (sortBy: 'usage' | 'name' | 'clicks') => void
 }
 
 export function TagSidebar({
@@ -33,7 +33,7 @@ export function TagSidebar({
   const [newTagName, setNewTagName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
-  const [internalSortBy, setInternalSortBy] = useState<'usage' | 'name'>('usage')
+  const [internalSortBy, setInternalSortBy] = useState<'usage' | 'name' | 'clicks'>('usage')
   const searchCleanupTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // 使用外部传入的 sortBy 或内部状态
