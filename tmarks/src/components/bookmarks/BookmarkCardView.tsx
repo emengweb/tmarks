@@ -47,10 +47,40 @@ export function BookmarkCardView({
     ...bookmarks.filter(b => !b.is_pinned)
   ]
 
+  // 分离置顶和非置顶书签
+  const pinnedBookmarks = bookmarks.filter(b => b.is_pinned)
+  const unpinnedBookmarks = bookmarks.filter(b => !b.is_pinned)
+
   return (
-    <div ref={containerRef} className="w-full">
-      {/* 瀑布流布局 - 使用CSS columns */}
-      {sortedBookmarks.length > 0 && (
+    <div ref={containerRef} className="w-full space-y-4">
+      {/* 置顶书签 - 使用Grid布局保持在顶部 */}
+      {pinnedBookmarks.length > 0 && (
+        <div
+          className="w-full"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '1rem'
+          } as React.CSSProperties}
+        >
+          {pinnedBookmarks.map((bookmark) => (
+            <div key={bookmark.id}>
+              <BookmarkCard
+                bookmark={bookmark}
+                onEdit={onEdit ? () => onEdit(bookmark) : undefined}
+                readOnly={readOnly}
+                batchMode={batchMode}
+                isSelected={selectedIds.includes(bookmark.id)}
+                onToggleSelect={onToggleSelect}
+                showEditHint={showEditHint}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 非置顶书签 - 使用瀑布流布局 */}
+      {unpinnedBookmarks.length > 0 && (
         <div
           className="w-full"
           style={{
@@ -59,7 +89,7 @@ export function BookmarkCardView({
             columnGap: '1rem'
           } as React.CSSProperties}
         >
-          {sortedBookmarks.map((bookmark) => (
+          {unpinnedBookmarks.map((bookmark) => (
             <div 
               key={bookmark.id}
               style={{
