@@ -127,6 +127,7 @@ export function BookmarksPage() {
   const [debouncedSelectedTags, setDebouncedSelectedTags] = useState<string[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
   const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('')
+  const [searchMode, setSearchMode] = useState<'bookmark' | 'tag'>('bookmark')  // 搜索模式
   const [sortBy, setSortBy] = useState<SortOption>('popular')
   const [viewMode, setViewMode] = useState<ViewMode>(() => getStoredViewMode() ?? 'card')
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all')
@@ -243,7 +244,8 @@ export function BookmarksPage() {
   const queryParams = useMemo<BookmarkQueryParams>(() => {
     const params: BookmarkQueryParams = {}
 
-    if (debouncedSearchKeyword.trim()) {
+    // 只在书签搜索模式下传递关键词
+    if (searchMode === 'bookmark' && debouncedSearchKeyword.trim()) {
       params.keyword = debouncedSearchKeyword.trim()
     }
 
@@ -254,7 +256,7 @@ export function BookmarksPage() {
     params.sort = sortBy
 
     return params
-  }, [debouncedSearchKeyword, debouncedSelectedTags, sortBy])
+  }, [searchMode, debouncedSearchKeyword, debouncedSelectedTags, sortBy])
 
   const bookmarksQuery = useInfiniteBookmarks(queryParams)
   const { refetch: refetchTags } = useTags()
@@ -579,6 +581,7 @@ export function BookmarksPage() {
               onTagLayoutChange={handleTagLayoutChange}
               bookmarks={filteredBookmarks}
               isLoadingBookmarks={isInitialLoading || isFetchingExisting}
+              searchQuery={searchMode === 'tag' ? debouncedSearchKeyword : ''}
             />
           </aside>
 
@@ -605,17 +608,40 @@ export function BookmarksPage() {
 
                     {/* 搜索框 */}
                     <div className="flex-1 min-w-0">
-                      <div className="relative w-full">
-                        <svg className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input
-                          type="text"
-                          className="input w-full pl-10 sm:pl-12 h-11 sm:h-auto text-sm sm:text-base"
-                          placeholder="搜索书签..."
-                          value={searchKeyword}
-                          onChange={(e) => setSearchKeyword(e.target.value)}
-                        />
+                      <div className="relative w-full flex items-center gap-1">
+                        {/* 搜索模式切换按钮 */}
+                        <button
+                          onClick={() => setSearchMode(searchMode === 'bookmark' ? 'tag' : 'bookmark')}
+                          className="w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-float bg-card border border-border hover:bg-muted hover:border-primary/30 text-foreground flex-shrink-0"
+                          title={searchMode === 'bookmark' ? '切换到标签搜索' : '切换到书签搜索'}
+                          aria-label={searchMode === 'bookmark' ? '切换到标签搜索' : '切换到书签搜索'}
+                        >
+                          {searchMode === 'bookmark' ? (
+                            // 书签图标
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                          ) : (
+                            // 标签图标
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                          )}
+                        </button>
+
+                        {/* 搜索输入框 */}
+                        <div className="relative flex-1 min-w-0">
+                          <svg className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          <input
+                            type="text"
+                            className="input w-full pl-10 sm:pl-12 h-11 sm:h-auto text-sm sm:text-base"
+                            placeholder={searchMode === 'bookmark' ? '搜索书签...' : '搜索标签...'}
+                            value={searchKeyword}
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -806,6 +832,7 @@ export function BookmarksPage() {
                   onTagLayoutChange={handleTagLayoutChange}
                   bookmarks={filteredBookmarks}
                   isLoadingBookmarks={isInitialLoading || isFetchingExisting}
+                  searchQuery={searchMode === 'tag' ? debouncedSearchKeyword : ''}
                 />
               </div>
             </div>
