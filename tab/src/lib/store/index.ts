@@ -43,9 +43,6 @@ interface AppState {
   successMessage: string | null;
   setSuccessMessage: (message: string | null) => void;
 
-  loadingMessage: string | null;
-  setLoadingMessage: (message: string | null) => void;
-
   lastRecommendationSource: RecommendationResult['source'] | null;
   lastRecommendationMessage: string | null;
 
@@ -58,24 +55,15 @@ interface AppState {
   includeThumbnail: boolean;
   setIncludeThumbnail: (value: boolean) => void;
 
-  createSnapshot: boolean;
-  setCreateSnapshot: (value: boolean) => void;
-
   // Configuration
   config: StorageConfig | null;
   loadConfig: () => Promise<void>;
   saveConfig: (config: Partial<StorageConfig>) => Promise<void>;
 
-  // Bookmark exists dialog
-  existingBookmark: any | null;
-  setExistingBookmark: (bookmark: any | null) => void;
-
   // Actions
   extractPageInfo: () => Promise<void>;
   recommendTags: () => Promise<void>;
   saveBookmark: () => Promise<void>;
-  updateExistingBookmarkTags: (bookmarkId: string, tags: string[]) => Promise<void>;
-  createSnapshotForBookmark: (bookmarkId: string) => Promise<void>;
   syncCache: () => Promise<void>;
 }
 
@@ -90,32 +78,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   isRecommending: false,
   error: null,
   successMessage: null,
-  loadingMessage: null,
   lastRecommendationSource: null,
   lastRecommendationMessage: null,
   lastSaveDurationMs: null,
   lastRecommendationDurationMs: null,
   isPublic: true,
   includeThumbnail: false,
-  createSnapshot: false,
-  existingBookmark: null,
-
-  setExistingBookmark: (bookmark) => set({ existingBookmark: bookmark }),
   config: null,
 
   // Setters
   setCurrentPage: (page) =>
     set((state) => {
       let includeThumbnail = false;
-      const defaultIncludeThumbnail = state.config?.preferences.defaultIncludeThumbnail ?? true;
 
       if (page) {
         if (state.currentPage && state.currentPage.url === page.url) {
-          // 同一页面，保持当前设置
           includeThumbnail = state.includeThumbnail && Boolean(page.thumbnail);
         } else {
-          // 新页面，使用默认设置
-          includeThumbnail = defaultIncludeThumbnail && Boolean(page.thumbnail);
+          includeThumbnail = Boolean(page.thumbnail);
         }
       }
 
@@ -129,7 +109,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   setSuccessMessage: (message) => set({ successMessage: message }),
-  setLoadingMessage: (message) => set({ loadingMessage: message }),
   setIsPublic: (value) => {
     const defaultVisibility: 'public' | 'private' = value ? 'public' : 'private';
     const state = get();
@@ -155,21 +134,16 @@ export const useAppStore = create<AppState>((set, get) => ({
           autoSync: true,
           syncInterval: 24,
           maxSuggestedTags: 5,
-          defaultVisibility,
-          enableAI: true,
-          defaultIncludeThumbnail: true,
-          defaultCreateSnapshot: false
+          defaultVisibility
         };
 
     StorageService.saveConfig({
       preferences: preferencesPayload
-    }).catch(() => {
-      // Silently handle error
+    }).catch((error) => {
+      console.error('Failed to persist visibility preference:', error);
     });
   },
   setIncludeThumbnail: (value) => set({ includeThumbnail: value }),
-
-  setCreateSnapshot: (value) => set({ createSnapshot: value }),
 
   // Tag management
   toggleTag: (tagName) =>
@@ -208,6 +182,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       set({ existingTags: tags });
     } catch (error) {
+      console.error('Failed to load existing tags:', error);
       // Don't set error state as this is not critical
     }
   },
@@ -218,10 +193,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const config = await StorageService.loadConfig();
       set({
         config,
-        isPublic: config.preferences.defaultVisibility === 'public',
-        createSnapshot: config.preferences.defaultCreateSnapshot ?? false
+        isPublic: config.preferences.defaultVisibility === 'public'
       });
     } catch (error) {
+      console.error('Failed to load config:', error);
       set({ error: 'Failed to load configuration' });
     }
   },
@@ -235,6 +210,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         isPublic: config.preferences.defaultVisibility === 'public'
       });
     } catch (error) {
+      console.error('Failed to save config:', error);
       set({ error: 'Failed to save configuration' });
     }
   },
@@ -257,6 +233,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         includeThumbnail: Boolean(response.thumbnail)
       });
     } catch (error) {
+      console.error('Failed to extract page info:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to extract page info',
         isLoading: false
@@ -327,6 +304,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }, 2000);
       }
     } catch (error) {
+      console.error('Failed to recommend tags:', error);
       const elapsedMs = Date.now() - startTime;
       set({
         error: error instanceof Error ? error.message : 'Failed to recommend tags',
@@ -340,16 +318,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   saveBookmark: async () => {
-    const { currentPage, selectedTags, isPublic, includeThumbnail, createSnapshot } = get();
+    const { currentPage, selectedTags, isPublic, includeThumbnail } = get();
 
     if (!currentPage) {
       set({ error: 'No page info available' });
       return;
     }
 
-    // AI 书签助手的核心功能是标签推荐，必须至少有一个标签
     if (selectedTags.length === 0) {
-      set({ error: '请至少选择一个标签' });
+      set({ error: 'Please select at least one tag' });
       return;
     }
 
@@ -357,6 +334,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     try {
       set({ isLoading: true, isSaving: true, error: null });
+
+      console.log('[Store] 保存书签，选中的标签:', selectedTags);
 
       const result = await sendMessage<SaveResult>({
         type: 'SAVE_BOOKMARK',
@@ -366,34 +345,24 @@ export const useAppStore = create<AppState>((set, get) => ({
           description: currentPage.description,
           tags: selectedTags,
           thumbnail: includeThumbnail ? currentPage.thumbnail : undefined,
-          isPublic,
-          createSnapshot
+          isPublic
         }
       });
 
       const endTime = Date.now();
       const elapsedMs = endTime - startTime;
       const formattedSeconds = (elapsedMs / 1000).toFixed(2);
+      console.log(`[Store] 书签保存耗时: ${formattedSeconds}s (${elapsedMs.toFixed(0)}ms)`);
 
       // Check if save was successful
       if (!result.success) {
-        set({
-          error: `${result.message || result.error || '保存失败'}（耗时 ${formattedSeconds}s）`,
+      set({
+        error:
+          `${result.message || result.error || '保存失败'}（耗时 ${formattedSeconds}s）`,
           isLoading: false,
           isSaving: false,
-          lastSaveDurationMs: elapsedMs
-        });
-        return;
-      }
-
-      // Check if bookmark already exists
-      if (result.existingBookmark) {
-        set({
-          existingBookmark: result.existingBookmark,
-          isLoading: false,
-          isSaving: false,
-          lastSaveDurationMs: elapsedMs
-        });
+        lastSaveDurationMs: elapsedMs
+      });
         return;
       }
 
@@ -444,101 +413,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const failureTime = Date.now();
       const elapsedMs = failureTime - startTime;
       const formattedSeconds = (elapsedMs / 1000).toFixed(2);
+      console.error('Failed to save bookmark:', error);
       set({
         error:
           `${error instanceof Error ? error.message : 'Failed to save bookmark'}（耗时 ${formattedSeconds}s）`,
         isLoading: false,
         isSaving: false,
         lastSaveDurationMs: elapsedMs
-      });
-    }
-  },
-
-  updateExistingBookmarkTags: async (bookmarkId: string, tags: string[]) => {
-    try {
-      set({ isSaving: true, error: null });
-
-      // 发送更新请求到 background
-      const result = await sendMessage({
-        type: 'UPDATE_BOOKMARK_TAGS',
-        payload: {
-          bookmarkId,
-          tags  // 直接传标签名称，后端会自动处理
-        }
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || '更新标签失败');
-      }
-
-      set({
-        successMessage: '✅ 标签已更新',
-        isSaving: false,
-        existingBookmark: null
-      });
-
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: '/icons/icon-128.png',
-        title: 'AI 书签助手',
-        message: '标签已成功更新'
-      });
-
-      setTimeout(() => {
-        set({ successMessage: null });
-      }, 2000);
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to update tags',
-        isSaving: false
-      });
-    }
-  },
-
-  createSnapshotForBookmark: async (bookmarkId: string) => {
-    const { currentPage } = get();
-    if (!currentPage) return;
-
-    try {
-      set({ isSaving: true, error: null, loadingMessage: '正在捕获页面内容...', successMessage: null });
-
-      // Get the current tab's HTML content
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab && tab.id) {
-        // sendMessage returns response.data directly (not the whole response object)
-        await sendMessage({
-          type: 'CREATE_SNAPSHOT',
-          payload: {
-            bookmarkId,
-            title: currentPage.title,
-            url: currentPage.url
-          }
-        });
-
-        // If we reach here, it means success (sendMessage throws on error)
-        set({
-          successMessage: '快照已创建',
-          loadingMessage: null,
-          isSaving: false,
-          existingBookmark: null
-        });
-
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: '/icons/icon-128.png',
-          title: 'AI 书签助手',
-          message: '快照已成功创建'
-        });
-
-        setTimeout(() => {
-          set({ successMessage: null });
-        }, 3000); // 增加到3秒，让用户有时间看到成功消息
-      }
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to create snapshot',
-        loadingMessage: null,
-        isSaving: false
       });
     }
   },
@@ -560,6 +441,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ successMessage: null });
       }, 2000);
     } catch (error) {
+      console.error('Failed to sync cache:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to sync cache',
         isLoading: false

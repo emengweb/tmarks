@@ -24,10 +24,7 @@ export function Options() {
     enableCustomPrompt: false,
     customPrompt: DEFAULT_PROMPT_TEMPLATE,
     maxSuggestedTags: 5,
-    defaultVisibility: 'public' as 'public' | 'private',
-    enableAI: true,
-    defaultIncludeThumbnail: true,
-    defaultCreateSnapshot: false
+    defaultVisibility: 'public' as 'public' | 'private'
   });
 
   const [stats, setStats] = useState({
@@ -244,10 +241,7 @@ export function Options() {
         enableCustomPrompt: config.aiConfig.enableCustomPrompt || false,
         customPrompt: config.aiConfig.customPrompt || formData.customPrompt,
         maxSuggestedTags: config.preferences.maxSuggestedTags,
-        defaultVisibility: config.preferences.defaultVisibility,
-        enableAI: config.preferences.enableAI ?? true,
-        defaultIncludeThumbnail: config.preferences.defaultIncludeThumbnail ?? true,
-        defaultCreateSnapshot: config.preferences.defaultCreateSnapshot ?? false
+        defaultVisibility: config.preferences.defaultVisibility
       });
       const normalizedSaved = normalizeSavedConnections(config.aiConfig.savedConnections);
       setSavedConnections(normalizedSaved);
@@ -365,10 +359,7 @@ export function Options() {
           autoSync: config?.preferences.autoSync ?? true,
           syncInterval: config?.preferences.syncInterval ?? 24,
           maxSuggestedTags: formData.maxSuggestedTags,
-          defaultVisibility: formData.defaultVisibility,
-          enableAI: formData.enableAI,
-          defaultIncludeThumbnail: formData.defaultIncludeThumbnail,
-          defaultCreateSnapshot: formData.defaultCreateSnapshot
+          defaultVisibility: formData.defaultVisibility
         }
       });
 
@@ -428,6 +419,7 @@ export function Options() {
       setSuccessMessage(`API 测试成功！返回 ${response.suggestedTags.length} 个标签：${response.suggestedTags.map(t => t.name).join(', ')}`);
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
+      console.error('API test failed:', err);
       setError(err instanceof Error ? err.message : 'API 测试失败');
     } finally {
       setIsTesting(false);
@@ -451,10 +443,7 @@ export function Options() {
         enableCustomPrompt: false,
         customPrompt: DEFAULT_PROMPT_TEMPLATE,
         maxSuggestedTags: 5,
-        defaultVisibility: 'public',
-        enableAI: true,
-        defaultIncludeThumbnail: true,
-        defaultCreateSnapshot: false
+        defaultVisibility: 'public'
       });
       setSuccessMessage('设置已重置');
       setTimeout(() => setSuccessMessage(null), 2000);
@@ -512,6 +501,7 @@ export function Options() {
       setSuccessMessage('已删除保存的连接');
       setTimeout(() => setSuccessMessage(null), 2000);
     } catch (err) {
+      console.error('Failed to delete saved connection:', err);
       setSavedConnections(previous);
       setError(err instanceof Error ? err.message : '删除连接失败');
     }
@@ -617,7 +607,7 @@ export function Options() {
       </div>
 
       {isPresetModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-blue-500/20 bg-white/95 dark:bg-gray-900/95 shadow-xl">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
             <div className="p-6 pt-10 space-y-6">

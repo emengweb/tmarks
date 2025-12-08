@@ -7,7 +7,6 @@ import { BookmarksAPI } from './bookmarks';
 import { TagsAPI } from './tags';
 import { UserAPI } from './user';
 import { TabGroupsAPI } from './tab-groups';
-import { SnapshotsAPI } from './snapshots';
 import type { TMarksClientConfig } from './client';
 
 /**
@@ -19,14 +18,12 @@ export class TMarks {
   public tags: TagsAPI;
   public user: UserAPI;
   public tabGroups: TabGroupsAPI;
-  public snapshots: SnapshotsAPI;
 
   constructor(config: TMarksClientConfig) {
     this.bookmarks = new BookmarksAPI(config);
     this.tags = new TagsAPI(config);
     this.user = new UserAPI(config);
     this.tabGroups = new TabGroupsAPI(config);
-    this.snapshots = new SnapshotsAPI(config);
   }
 
   /**
@@ -51,6 +48,4 @@ export { BookmarksAPI } from './bookmarks';
 export { TagsAPI } from './tags';
 export { UserAPI } from './user';
 export { TabGroupsAPI } from './tab-groups';
-export { SnapshotsAPI } from './snapshots';
 export type * from './tab-groups';
-export type * from './snapshots';

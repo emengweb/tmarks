@@ -14,7 +14,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const body = await context.request.json() as RefreshRequest
 
     if (!body.refresh_token) {
-      return badRequest('\u5237\u65b0\u4ee4\u724c\u4e3a\u5fc5\u586b\u9879')
+      return badRequest('Refresh token is required')
     }
 
     // 哈希刷新令牌
@@ -35,18 +35,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }>()
 
     if (!tokenRecord) {
-      return unauthorized('\u5237\u65b0\u4ee4\u724c\u65e0\u6548')
+      return unauthorized('Invalid refresh token')
     }
 
     // 检查是否已撤销
     if (tokenRecord.revoked_at) {
-      return unauthorized('\u5237\u65b0\u4ee4\u724c\u5df2\u88ab\u64a4\u9500')
+      return unauthorized('Refresh token has been revoked')
     }
 
     // 检查是否过期
     const expiresAt = new Date(tokenRecord.expires_at)
     if (expiresAt < new Date()) {
-      return unauthorized('\u5237\u65b0\u4ee4\u724c\u5df2\u8fc7\u671f')
+      return unauthorized('Refresh token has expired')
     }
 
     // 生成新的 session_id

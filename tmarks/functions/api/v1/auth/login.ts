@@ -19,7 +19,7 @@ export const onRequestPost: PagesFunction<Env>[] = [
     const body = await context.request.json() as LoginRequest
 
     if (!body.username || !body.password) {
-      return badRequest('用户名和密码为必填项')
+      return badRequest('Username and password are required')
     }
 
     // 查找用户（支持用户名或邮箱登录）
@@ -63,7 +63,7 @@ export const onRequestPost: PagesFunction<Env>[] = [
         )
         .run()
 
-      return unauthorized('\u7528\u6237\u540d\u6216\u5bc6\u7801\u4e0d\u6b63\u786e')
+      return unauthorized('Invalid username or password')
     }
 
     // 验证密码
@@ -84,7 +84,7 @@ export const onRequestPost: PagesFunction<Env>[] = [
         )
         .run()
 
-      return unauthorized('\u7528\u6237\u540d\u6216\u5bc6\u7801\u4e0d\u6b63\u786e')
+      return unauthorized('Invalid username or password')
     }
 
     // 生成 session_id
@@ -150,7 +150,7 @@ export const onRequestPost: PagesFunction<Env>[] = [
     })
   } catch (error) {
     console.error('Login error:', error)
-    return internalError('\u767b\u5f55\u5931\u8d25')
+    return internalError('Login failed')
   }
 },
 ]

@@ -19,6 +19,7 @@ export class TagRecommender {
       const apiKey = config.aiConfig.apiKeys[config.aiConfig.provider];
 
       if (!apiKey) {
+        console.warn('[TagRecommender] No API key configured, using fallback');
         return this.fallbackRecommendation(pageInfo);
       }
 
@@ -58,6 +59,8 @@ export class TagRecommender {
       // Post-process: verify isNew field and deduplicate
       const existingTagNames = context.existingTags;
       const existingTagSet = new Set(existingTagNames.map(tag => tag.trim().toLowerCase()));
+      console.log('[TagRecommender] 开始修正 isNew 字段, 已有标签数量:', existingTagNames.length);
+      console.log('[TagRecommender] AI 返回的标签:', aiResponse.suggestedTags);
 
       const verifiedTags = aiResponse.suggestedTags.map((tag: TagSuggestion) => {
         const normalizedTagName = tag.name.trim().toLowerCase();
@@ -67,10 +70,13 @@ export class TagRecommender {
           // 二次校验:前端验证 isNew 字段是否正确
           isNew: !isExisting
         };
+        console.log(`[TagRecommender] 标签 "${tag.name}": AI判断 isNew=${tag.isNew}, 实际应为 isNew=${correctedTag.isNew}, 在已有标签中? ${isExisting}`);
         return correctedTag;
       });
 
       const tags = this.deduplicateAndSort(verifiedTags);
+
+      console.log('[TagRecommender] 已修正 isNew 字段 (最终结果):', tags);
 
       return {
         tags,
@@ -78,6 +84,7 @@ export class TagRecommender {
         timestamp: Date.now()
       };
     } catch (error) {
+      console.error('[TagRecommender] AI recommendation failed:', error);
       const message = error instanceof Error ? error.message : 'AI recommendation failed';
       return this.fallbackRecommendation(pageInfo, message);
     }
@@ -140,6 +147,7 @@ export class TagRecommender {
         return result;
       } catch (error) {
         lastError = error as Error;
+        console.error(`[TagRecommender] AI call attempt ${i + 1} failed:`, error);
 
         if (i < maxRetries - 1) {
           // Exponential backoff
@@ -156,6 +164,8 @@ export class TagRecommender {
    * Fallback recommendation using simple keyword matching
    */
   private async fallbackRecommendation(pageInfo: PageInfo, message?: string): Promise<RecommendationResult> {
+    console.log('[TagRecommender] ⚠️ Using fallback recommendation (AI failed)');
+
     const keywords = this.extractKeywords(pageInfo.title + ' ' + (pageInfo.description || ''));
     const existingTags = await db.tags.toArray();
 
@@ -174,6 +184,8 @@ export class TagRecommender {
         isNew: false,
         confidence: 0.6
       }));
+
+    console.log('[TagRecommender] Fallback 返回的标签 (全部 isNew=false):', matchedTags);
 
     return {
       tags: matchedTags,

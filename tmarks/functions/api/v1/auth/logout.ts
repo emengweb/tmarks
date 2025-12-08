@@ -16,7 +16,7 @@ export const onRequest: PagesFunction<Env, RouteParams, AuthContext>[] = [
       const body = await context.request.json() as LogoutRequest
 
       if (!body.refresh_token) {
-        return badRequest('\u5237\u65b0\u4ee4\u724c\u4e3a\u5fc5\u586b\u9879')
+        return badRequest('Refresh token is required')
       }
 
       const userId = context.data.user_id
@@ -65,7 +65,7 @@ export const onRequest: PagesFunction<Env, RouteParams, AuthContext>[] = [
       return noContent()
     } catch (error) {
       console.error('Logout error:', error)
-      return internalError('\u9000\u51fa\u767b\u5f55\u5931\u8d25')
+      return internalError('Logout failed')
     }
   },
 ]

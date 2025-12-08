@@ -24,24 +24,16 @@ interface RequestPayload {
 interface ProviderConfig {
   defaultBaseUrl: string;
   buildRequest: (params: InvokeParams) => RequestPayload;
-  extractContent: (data: unknown) => string | undefined;
+  extractContent: (data: any) => string | undefined;
 }
 
-const openAIStyleExtractor = (data: unknown): string | undefined => {
-  if (!data || typeof data !== 'object') return undefined;
-  const dataObj = data as Record<string, unknown>;
-  
-  const choices = dataObj.choices;
-  if (!Array.isArray(choices) || choices.length === 0) return undefined;
-  
-  const firstChoice = choices[0];
-  if (!firstChoice || typeof firstChoice !== 'object') return undefined;
-  
-  const message = (firstChoice as Record<string, unknown>).message;
-  if (!message || typeof message !== 'object') return undefined;
-  
-  const messageObj = message as Record<string, unknown>;
-  const rawContent = messageObj.content;
+const openAIStyleExtractor = (data: any): string | undefined => {
+  const message = data?.choices?.[0]?.message;
+  if (!message) {
+    return undefined;
+  }
+
+  const rawContent = message.content;
 
   if (typeof rawContent === 'string') {
     return rawContent.trim();
@@ -53,14 +45,10 @@ const openAIStyleExtractor = (data: unknown): string | undefined => {
         if (!part) return '';
         if (typeof part === 'string') return part;
         if (typeof part === 'object') {
-          const partObj = part as Record<string, unknown>;
-          if (typeof partObj.text === 'string') return partObj.text;
-          if (typeof partObj.content === 'string') return partObj.content;
-          if (typeof partObj.value === 'string') return partObj.value;
-          if (partObj.text && typeof partObj.text === 'object') {
-            const textObj = partObj.text as Record<string, unknown>;
-            if (typeof textObj.value === 'string') return textObj.value;
-          }
+          if (typeof part.text === 'string') return part.text;
+          if (typeof part.content === 'string') return part.content;
+          if (typeof part.value === 'string') return part.value;
+          if (part.text && typeof part.text?.value === 'string') return part.text.value;
         }
         return '';
       })
@@ -73,19 +61,16 @@ const openAIStyleExtractor = (data: unknown): string | undefined => {
     }
   }
 
-  if (typeof messageObj.text === 'string') {
-    return messageObj.text.trim();
+  if (typeof message.text === 'string') {
+    return message.text.trim();
   }
 
-  if (typeof dataObj.output_text === 'string') {
-    return dataObj.output_text.trim();
+  if (typeof data?.output_text === 'string') {
+    return data.output_text.trim();
   }
 
-  if (dataObj.output && typeof dataObj.output === 'object') {
-    const outputObj = dataObj.output as Record<string, unknown>;
-    if (typeof outputObj.text === 'string') {
-      return outputObj.text.trim();
-    }
+  if (data?.output && typeof data.output.text === 'string') {
+    return data.output.text.trim();
   }
 
   return undefined;

@@ -52,6 +52,7 @@ export class SecureStorage {
       // Convert to base64
       return btoa(String.fromCharCode(...combined));
     } catch (error) {
+      console.error('Encryption failed:', error);
       throw new Error('Failed to encrypt API key');
     }
   }
@@ -75,6 +76,7 @@ export class SecureStorage {
 
       return new TextDecoder().decode(decrypted);
     } catch (error) {
+      console.error('Decryption failed:', error);
       throw new Error('Failed to decrypt API key');
     }
   }

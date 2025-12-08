@@ -12,10 +12,13 @@ export class CacheManager {
     const startTime = Date.now();
 
     try {
+      console.log('[CacheManager] Starting full sync...');
+
       // 1. Fetch and cache tags
       const tags = await bookmarkAPI.getTags();
       await db.tags.clear();
       await db.tags.bulkAdd(tags);
+      console.log(`[CacheManager] Synced ${tags.length} tags`);
 
       // 2. Fetch and cache bookmarks (paginated)
       let page = 1;
@@ -26,11 +29,17 @@ export class CacheManager {
         const { bookmarks, hasMore } = await bookmarkAPI.getBookmarks(page, PAGINATION.DEFAULT_PAGE_SIZE);
 
         if (bookmarks.length > 0) {
-          await db.bookmarks.bulkAdd(bookmarks);
+          // 使用 bulkPut 而不是 bulkAdd，避免主键冲突
+          await db.bookmarks.bulkPut(bookmarks);
           totalBookmarks += bookmarks.length;
+          console.log(`[CacheManager] Synced page ${page}: ${bookmarks.length} bookmarks (total: ${totalBookmarks})`);
         }
 
-        if (!hasMore) break;
+        // 如果没有更多数据或者当前页没有数据，停止分页
+        if (!hasMore || bookmarks.length === 0) {
+          console.log(`[CacheManager] Pagination complete. Total bookmarks: ${totalBookmarks}`);
+          break;
+        }
         page++;
       }
 
@@ -50,6 +59,7 @@ export class CacheManager {
       await tagRecommender.refreshContextFromDB();
 
       const duration = Date.now() - startTime;
+      console.log(`[CacheManager] Full sync completed in ${duration}ms`);
 
       return {
         success: true,
@@ -60,6 +70,8 @@ export class CacheManager {
         }
       };
     } catch (error) {
+      console.error('[CacheManager] Full sync failed:', error);
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -88,8 +100,11 @@ export class CacheManager {
       // 2. GET /api/tags?since={lastSync}
       // 3. Merge changes into existing data
 
+      console.log('[CacheManager] Incremental sync not implemented, falling back to full sync');
       return this.fullSync();
     } catch (error) {
+      console.error('[CacheManager] Incremental sync failed:', error);
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -122,9 +137,11 @@ export class CacheManager {
     const isStale = await this.isCacheStale(maxAgeHours);
 
     if (isStale) {
+      console.log('[CacheManager] Cache is stale, performing auto sync');
       return this.incrementalSync();
     }
 
+    console.log('[CacheManager] Cache is fresh, skipping sync');
     return null;
   }
 
@@ -134,6 +151,7 @@ export class CacheManager {
   async clearCache(): Promise<void> {
     await db.clearAll();
     tagRecommender.clearContextCache();
+    console.log('[CacheManager] Cache cleared');
   }
 }
 

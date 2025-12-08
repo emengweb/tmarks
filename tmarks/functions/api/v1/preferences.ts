@@ -98,12 +98,7 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
         .first<UserPreferences>()
 
       if (!preferences) {
-        return notFound('未找到偏好设置')
-      }
-
-
-      if (!preferences) {
-        return notFound('未找到偏好设置')
+        return notFound('Preferences not found')
       }
 
       return success({
@@ -128,7 +123,7 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
       })
     } catch (error) {
       console.error('Get preferences error:', error)
-      return internalError('获取偏好设置失败')
+      return internalError('Failed to get preferences')
     }
   },
 ]
@@ -146,35 +141,35 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
 
       // 验证输入
       if (body.theme && !['light', 'dark', 'system'].includes(body.theme)) {
-        return badRequest('主题值不合法')
+        return badRequest('Invalid theme value')
       }
 
       if (body.page_size && (body.page_size < 10 || body.page_size > 100)) {
-        return badRequest('每页条数必须在 10 到 100 之间')
+        return badRequest('Page size must be between 10 and 100')
       }
 
       if (body.view_mode && !['list', 'card', 'minimal', 'title'].includes(body.view_mode)) {
-        return badRequest('视图模式不合法')
+        return badRequest('Invalid view mode')
       }
 
       if (body.density && !['compact', 'normal', 'comfortable'].includes(body.density)) {
-        return badRequest('密度设置不合法')
+        return badRequest('Invalid density value')
       }
 
       if (body.tag_layout && !['grid', 'masonry'].includes(body.tag_layout)) {
-        return badRequest('标签布局不合法')
+        return badRequest('Invalid tag layout value')
       }
 
       if (body.sort_by && !['created', 'updated', 'pinned', 'popular'].includes(body.sort_by)) {
-        return badRequest('排序方式不合法')
+        return badRequest('Invalid sort_by value')
       }
 
       if (body.search_auto_clear_seconds !== undefined && (body.search_auto_clear_seconds < 5 || body.search_auto_clear_seconds > 120)) {
-        return badRequest('搜索自动清空时间必须在 5 到 120 秒之间')
+        return badRequest('Search auto clear seconds must be between 5 and 120')
       }
 
       if (body.tag_selection_auto_clear_seconds !== undefined && (body.tag_selection_auto_clear_seconds < 10 || body.tag_selection_auto_clear_seconds > 300)) {
-        return badRequest('标签选择自动清空时间必须在 10 到 300 秒之间')
+        return badRequest('Tag selection auto clear seconds must be between 10 and 300')
       }
 
       // 默认书签图标：前端当前只提供 orbital-spinner，但为了兼容旧数据，仍然允许历史值
@@ -184,15 +179,15 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
           body.default_bookmark_icon,
         )
       ) {
-        return badRequest('默认书签图标不合法')
+        return badRequest('Invalid default bookmark icon value')
       }
 
       if (body.snapshot_retention_count !== undefined && (body.snapshot_retention_count < -1 || body.snapshot_retention_count > 100)) {
-        return badRequest('快照保留数量必须在 -1 到 100 之间（-1 表示不限）')
+        return badRequest('Snapshot retention count must be between -1 and 100')
       }
 
       if (body.snapshot_auto_cleanup_days !== undefined && (body.snapshot_auto_cleanup_days < 0 || body.snapshot_auto_cleanup_days > 365)) {
-        return badRequest('快照自动清理天数必须在 0 到 365 之间')
+        return badRequest('Snapshot auto cleanup days must be between 0 and 365')
       }
 
       // 确保当前用户在 user_preferences 表中有一条记录；
@@ -298,7 +293,7 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
             .first<UserPreferences>()
 
           if (!preferences) {
-            return internalError('加载偏好设置失败')
+            return internalError('Failed to load preferences')
           }
 
           return success({
@@ -323,7 +318,7 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
           })
         }
 
-        return badRequest('没有可更新的字段')
+        return badRequest('No valid fields to update')
       }
 
       const now = new Date().toISOString()
@@ -347,7 +342,7 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
         .first<UserPreferences>()
 
       if (!preferences) {
-        return internalError('加载偏好设置失败')
+        return internalError('Failed to load preferences after update')
       }
 
       return success({
@@ -375,7 +370,7 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
 
       // 在无法直接查看 Cloudflare Functions 日志的情况下，
       // 临时把错误信息附加到响应中，方便前端 Network 面板中排查问题。
-      const baseMessage = '更新偏好设置失败'
+      const baseMessage = 'Failed to update preferences'
       let details = ''
 
       if (error instanceof Error) {
@@ -388,7 +383,18 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
         ? `${baseMessage}: ${details}`
         : baseMessage
 
-      return internalError(message)
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'INTERNAL_ERROR',
+            message,
+          },
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
     }
   },
 ]
