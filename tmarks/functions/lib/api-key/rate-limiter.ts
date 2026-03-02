@@ -1,9 +1,9 @@
 /**
- * Rate Limiter - API Key 速率限制
+ * Rate Limiter - API Key 速率限制（已移除 KV）
  * 使用 KV 存储请求计数
  */
 
-import type { KVNamespace } from '@cloudflare/workers-types'
+// import type { KVNamespace } from '@cloudflare/workers-types'
 
 interface RateLimitConfig {
   per_minute: number
@@ -27,7 +27,7 @@ interface RateLimitResult {
 }
 
 /**
- * 检查速率限制
+ * 检查速率限制（已移除 KV，始终允许）
  * @param apiKeyId API Key ID
  * @param kv KV Namespace
  * @param limits 速率限制配置
@@ -35,117 +35,114 @@ interface RateLimitResult {
  */
 export async function checkRateLimit(
   apiKeyId: string,
-  kv: KVNamespace,
+  kv: unknown,
   limits: RateLimitConfig = DEFAULT_LIMITS
 ): Promise<RateLimitResult> {
+  // KV 已移除，始终允许请求
+  void apiKeyId
+  void kv
   const now = Date.now()
-
-  // 检查分钟级限制
-  const minuteResult = await checkWindow(
-    kv,
-    apiKeyId,
-    'minute',
-    60 * 1000,
-    limits.per_minute,
-    now
-  )
-
-  if (!minuteResult.allowed) {
-    return minuteResult
+  
+  return {
+    allowed: true,
+    limit: limits.per_minute,
+    remaining: limits.per_minute,
+    reset: now + 60 * 1000,
   }
 
-  // 检查小时级限制
-  const hourResult = await checkWindow(
-    kv,
-    apiKeyId,
-    'hour',
-    60 * 60 * 1000,
-    limits.per_hour,
-    now
-  )
-
-  if (!hourResult.allowed) {
-    return hourResult
-  }
-
-  // 检查天级限制
-  const dayResult = await checkWindow(
-    kv,
-    apiKeyId,
-    'day',
-    24 * 60 * 60 * 1000,
-    limits.per_day,
-    now
-  )
-
-  return dayResult
+  // const now = Date.now()
+  // const minuteResult = await checkWindow(
+  //   kv,
+  //   apiKeyId,
+  //   'minute',
+  //   60 * 1000,
+  //   limits.per_minute,
+  //   now
+  // )
+  // if (!minuteResult.allowed) {
+  //   return minuteResult
+  // }
+  // const hourResult = await checkWindow(
+  //   kv,
+  //   apiKeyId,
+  //   'hour',
+  //   60 * 60 * 1000,
+  //   limits.per_hour,
+  //   now
+  // )
+  // if (!hourResult.allowed) {
+  //   return hourResult
+  // }
+  // const dayResult = await checkWindow(
+  //   kv,
+  //   apiKeyId,
+  //   'day',
+  //   24 * 60 * 60 * 1000,
+  //   limits.per_day,
+  //   now
+  // )
+  // return dayResult
 }
 
 /**
- * 记录请求（增加计数）
+ * 记录请求（已移除 KV）
  * @param apiKeyId API Key ID
  * @param kv KV Namespace
  */
-export async function recordRequest(apiKeyId: string, kv: KVNamespace): Promise<void> {
-  const now = Date.now()
-
-  // 并发增加三个时间窗口的计数
-  await Promise.all([
-    incrementWindow(kv, apiKeyId, 'minute', 60 * 1000, now),
-    incrementWindow(kv, apiKeyId, 'hour', 60 * 60 * 1000, now),
-    incrementWindow(kv, apiKeyId, 'day', 24 * 60 * 60 * 1000, now),
-  ])
+export async function recordRequest(apiKeyId: string, kv: unknown): Promise<void> {
+  // KV 已移除，跳过记录
+  void apiKeyId
+  void kv
+  // const now = Date.now()
+  // await Promise.all([
+  //   incrementWindow(kv, apiKeyId, 'minute', 60 * 1000, now),
+  //   incrementWindow(kv, apiKeyId, 'hour', 60 * 60 * 1000, now),
+  //   incrementWindow(kv, apiKeyId, 'day', 24 * 60 * 60 * 1000, now),
+  // ])
 }
 
 /**
- * 检查单个时间窗口
+ * 检查单个时间窗口（已移除 KV）
  */
-async function checkWindow(
-  kv: KVNamespace,
-  apiKeyId: string,
-  window: 'minute' | 'hour' | 'day',
-  windowMs: number,
-  limit: number,
-  now: number
-): Promise<RateLimitResult> {
-  const windowStart = Math.floor(now / windowMs)
-  const key = `ratelimit:${apiKeyId}:${window}:${windowStart}`
-
-  const countStr = await kv.get(key)
-  const count = countStr ? parseInt(countStr, 10) : 0
-
-  const allowed = count < limit
-  const remaining = Math.max(0, limit - count)
-  const reset = (windowStart + 1) * windowMs
-  const retryAfter = allowed ? undefined : Math.ceil((reset - now) / 1000)
-
-  return {
-    allowed,
-    limit,
-    remaining,
-    reset,
-    retryAfter,
-  }
-}
+// async function checkWindow(
+//   kv: unknown,
+//   apiKeyId: string,
+//   window: 'minute' | 'hour' | 'day',
+//   windowMs: number,
+//   limit: number,
+//   now: number
+// ): Promise<RateLimitResult> {
+//   const windowStart = Math.floor(now / windowMs)
+//   const key = `ratelimit:${apiKeyId}:${window}:${windowStart}`
+//   const countStr = await kv.get(key)
+//   const count = countStr ? parseInt(countStr, 10) : 0
+//   const allowed = count < limit
+//   const remaining = Math.max(0, limit - count)
+//   const reset = (windowStart + 1) * windowMs
+//   const retryAfter = allowed ? undefined : Math.ceil((reset - now) / 1000)
+//   return {
+//     allowed,
+//     limit,
+//     remaining,
+//     reset,
+//     retryAfter,
+//   }
+// }
 
 /**
- * 增加时间窗口计数
+ * 增加时间窗口计数（已移除 KV）
  */
-async function incrementWindow(
-  kv: KVNamespace,
-  apiKeyId: string,
-  window: 'minute' | 'hour' | 'day',
-  windowMs: number,
-  now: number
-): Promise<void> {
-  const windowStart = Math.floor(now / windowMs)
-  const key = `ratelimit:${apiKeyId}:${window}:${windowStart}`
-
-  const countStr = await kv.get(key)
-  const count = countStr ? parseInt(countStr, 10) : 0
-
-  // TTL 设置为窗口大小 + 1小时（容错）
-  const ttl = Math.ceil(windowMs / 1000) + 3600
-
-  await kv.put(key, String(count + 1), { expirationTtl: ttl })
-}
+// async function incrementWindow(
+//   kv: unknown,
+//   apiKeyId: string,
+//   window: 'minute' | 'hour' | 'day',
+//   windowMs: number,
+//   now: number
+// ): Promise<void> {
+//   const windowStart = Math.floor(now / windowMs)
+//   const key = `ratelimit:${apiKeyId}:${window}:${windowStart}`
+//   const countStr = await kv.get(key)
+//   const count = countStr ? parseInt(countStr, 10) : 0
+//   const ttl = Math.ceil(windowMs / 1000) + 3600
+//   await kv.put(key, String(count + 1), { expirationTtl: ttl })
+// }

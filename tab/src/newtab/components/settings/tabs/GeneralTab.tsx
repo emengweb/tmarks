@@ -4,8 +4,8 @@
 
 import { useState } from 'react';
 import { t, getCurrentLanguageSync, setLanguage, SUPPORTED_LANGUAGES, type LanguageCode } from '@/lib/i18n';
-import { useNewtabStore } from '../../../hooks/useNewtabStore';
-import { SEARCH_ENGINES } from '../../../constants';
+import { useNewtabStore } from '../../../hooks';
+import { SEARCH_ENGINES } from '../../../constants/index';
 import {
   SettingSection,
   ToggleItem,

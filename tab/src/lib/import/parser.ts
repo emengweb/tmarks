@@ -146,10 +146,20 @@ export function parseJsonBookmarks(content: string): ParsedBookmark[] {
 /**
  * 根据格式解析书签文件
  */
-export function parseBookmarksFile(content: string, format: 'html' | 'json'): ParsedBookmark[] {
+export function parseBookmarksFile(content: string, format: 'html' | 'json' | 'txt'): ParsedBookmark[] {
   if (format === 'html') {
     return parseHtmlBookmarks(content)
-  } else {
+  } else if (format === 'json') {
     return parseJsonBookmarks(content)
+  } else {
+    // txt 格式：每行一个 URL
+    return content
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(url => ({
+        title: url,
+        url
+      }))
   }
 }

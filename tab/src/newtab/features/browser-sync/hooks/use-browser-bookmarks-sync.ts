@@ -3,14 +3,15 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useNewtabStore } from '../../../hooks/useNewtabStore';
+import { useNewtabStore } from '../../../hooks';
 import { hasBookmarksApi, getChildren, getSubTree, getBookmarkNode } from '../api';
 import { ensureRootFolder } from '../root-folder';
 import { ensureHomeFolder } from '../home-folder';
 import { autoDiscoverAndCreateGroups } from '../auto-discover';
+import type { ExtendedBookmarkTreeNode } from '../types';
 import { toGridItems } from '../transform';
 import { registerBookmarkListeners } from '../listeners';
-import type { GridItem } from '../../../types';
+import type { Item } from '../../../types/core';
 
 export function useBrowserBookmarksSync() {
   const {
@@ -20,7 +21,7 @@ export function useBrowserBookmarksSync() {
     setBrowserBookmarksRootId,
     setHomeBrowserFolderId,
     setIsApplyingBrowserBookmarks,
-    replaceBrowserBookmarkGridItems,
+    replaceBrowserBookmarkItems,
     upsertBrowserBookmarkNode,
     removeBrowserBookmarkById,
     applyBrowserBookmarkChildrenOrder,
@@ -40,8 +41,10 @@ export function useBrowserBookmarksSync() {
       const homeId = state.homeBrowserFolderId;
       if (!rootId || !parentId) return false;
       if (parentId === rootId || parentId === homeId) return true;
-      if (state.shortcutGroups.some((g) => g.bookmarkFolderId === parentId)) return true;
-      return state.gridItems.some((i) => i.browserBookmarkId === parentId && i.type === 'bookmarkFolder');
+      if (state.groups.some((g) => g.bookmarkFolderId === parentId)) return true;
+      // 检查分组项目和首页项目
+      return state.items.some((i) => i.browserBookmarkId === parentId && i.type === 'folder') ||
+             state.homeItems.some((i) => i.browserBookmarkId === parentId && i.type === 'folder');
     };
 
     const refreshChildrenOrder = async (parentBookmarkId: string) => {
@@ -55,25 +58,29 @@ export function useBrowserBookmarksSync() {
       }
     };
 
-    const purgeBrowserLinkedGridItems = () => {
+    const purgeBrowserLinkedItems = () => {
       const snapshot = useNewtabStore.getState();
-      const filtered = snapshot.gridItems.filter((item) => !item.browserBookmarkId);
+      const filteredItems = snapshot.items.filter((item) => !item.browserBookmarkId);
+      const filteredHomeItems = snapshot.homeItems.filter((item) => !item.browserBookmarkId);
       const nextCurrentFolderId =
-        snapshot.currentFolderId && filtered.some((item) => item.id === snapshot.currentFolderId)
+        snapshot.currentFolderId && 
+        (filteredItems.some((item) => item.id === snapshot.currentFolderId) ||
+         filteredHomeItems.some((item) => item.id === snapshot.currentFolderId))
           ? snapshot.currentFolderId
           : null;
-      useNewtabStore.setState({ gridItems: filtered, currentFolderId: nextCurrentFolderId });
+      useNewtabStore.setState({ 
+        items: filteredItems, 
+        homeItems: filteredHomeItems,
+        currentFolderId: nextCurrentFolderId 
+      });
       snapshot.saveData();
-      // 清理可能变空的分组
-      useNewtabStore.getState().cleanupEmptyGroups();
     };
 
     const resetBrowserLinkedState = () => {
       const snapshot = useNewtabStore.getState();
-      snapshot.shortcutGroups
-        .filter((g) => g.id !== 'home')
-        .forEach((g) => removeGroup(g.id, { skipBrowserBookmarkDeletion: true }));
-      purgeBrowserLinkedGridItems();
+      // 删除所有分组
+      snapshot.groups.forEach((g) => removeGroup(g.id));
+      purgeBrowserLinkedItems();
       setBrowserBookmarksRootId(null);
       setHomeBrowserFolderId(null);
     };
@@ -99,7 +106,7 @@ export function useBrowserBookmarksSync() {
           rootId,
           state.addGroup,
           state.setGroupBookmarkFolderId,
-          () => useNewtabStore.getState().shortcutGroups
+          () => useNewtabStore.getState().groups
         );
 
         if (wasRecreated) {
@@ -110,17 +117,22 @@ export function useBrowserBookmarksSync() {
           );
         }
 
-        const configuredGroups = ['home', ...useNewtabStore.getState().shortcutGroups.filter((g) => g.id !== 'home').map((g) => g.id)];
-        const collected: GridItem[] = [];
+        const configuredGroups = useNewtabStore.getState().groups.map((g) => g.id);
+        const collected: Item[] = [];
+        const collectedHome: Item[] = [];
         const refreshedGroups: string[] = [];
 
-        for (const groupId of configuredGroups) {
-          let folderId: string | null = null;
-          if (groupId === 'home') {
-            folderId = homeFolder?.id ?? state.homeBrowserFolderId ?? (await ensureGroupBookmarkFolderId(groupId));
-          } else {
-            folderId = await ensureGroupBookmarkFolderId(groupId);
+        // 首先处理首页
+        if (homeFolder) {
+          const subTree = await getSubTree(homeFolder.id);
+          if (subTree) {
+            collectedHome.push(...toGridItems(subTree.children || [], { groupId: '__home__', parentGridId: null }));
           }
+        }
+
+        // 然后处理分组
+        for (const groupId of configuredGroups) {
+          const folderId = await ensureGroupBookmarkFolderId(groupId);
           if (!folderId) continue;
 
           refreshedGroups.push(groupId);
@@ -131,7 +143,12 @@ export function useBrowserBookmarksSync() {
         }
 
         setIsApplyingBrowserBookmarks(true);
-        replaceBrowserBookmarkGridItems(collected, { groupIds: refreshedGroups });
+        // 更新首页项目
+        if (collectedHome.length > 0) {
+          useNewtabStore.setState({ homeItems: collectedHome });
+        }
+        // 更新分组项目
+        replaceBrowserBookmarkItems(collected, { groupIds: refreshedGroups });
       } finally {
         setIsApplyingBrowserBookmarks(false);
         refreshInFlight.current = false;
@@ -144,21 +161,21 @@ export function useBrowserBookmarksSync() {
       onCreated: (id, node) => {
         const now = Date.now();
         if (now < useNewtabStore.getState().browserBookmarkWriteLockUntil) return;
-        if (!isInScopeParent((node as any).parentId)) return;
+        if (!isInScopeParent(node.parentId)) return;
 
         setIsApplyingBrowserBookmarks(true);
         try {
           upsertBrowserBookmarkNode({
             id,
-            parentId: (node as any).parentId,
+            parentId: node.parentId,
             title: node.title,
             url: node.url,
-            index: (node as any).index,
+            index: node.index,
           });
         } finally {
           setIsApplyingBrowserBookmarks(false);
         }
-        if ((node as any).parentId) refreshChildrenOrder((node as any).parentId);
+        if (node.parentId) refreshChildrenOrder(node.parentId);
       },
 
       onRemoved: (id, removeInfo) => {
@@ -174,9 +191,9 @@ export function useBrowserBookmarksSync() {
 
         if (!isInScopeParent(removeInfo?.parentId)) return;
 
-        const matchingGroup = state.shortcutGroups.find((g) => g.bookmarkFolderId === id);
-        if (matchingGroup && matchingGroup.id !== 'home') {
-          removeGroup(matchingGroup.id, { skipBrowserBookmarkDeletion: true });
+        const matchingGroup = state.groups.find((g) => g.bookmarkFolderId === id);
+        if (matchingGroup) {
+          removeGroup(matchingGroup.id);
         }
 
         setIsApplyingBrowserBookmarks(true);
@@ -193,16 +210,16 @@ export function useBrowserBookmarksSync() {
         if (now < useNewtabStore.getState().browserBookmarkWriteLockUntil) return;
 
         const node = await getBookmarkNode(id);
-        if (!node || !isInScopeParent((node as any).parentId)) return;
+        if (!node || !isInScopeParent((node as ExtendedBookmarkTreeNode).parentId)) return;
 
         setIsApplyingBrowserBookmarks(true);
         try {
           upsertBrowserBookmarkNode({
             id,
-            parentId: (node as any).parentId,
+            parentId: (node as ExtendedBookmarkTreeNode).parentId,
             title: changeInfo.title ?? node.title,
             url: changeInfo.url ?? node.url,
-            index: (node as any).index,
+            index: (node as ExtendedBookmarkTreeNode).index,
           });
         } finally {
           setIsApplyingBrowserBookmarks(false);

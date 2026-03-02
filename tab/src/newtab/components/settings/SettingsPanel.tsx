@@ -37,13 +37,24 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       >
         {/* 顶部标题栏 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h2 className="text-lg font-medium text-white">{t('options_title')}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5 text-white/70" />
-          </button>
+          <div className="flex-1">
+            <h2 className="text-lg font-medium text-white">{t('options_title')}</h2>
+            <p className="text-xs text-white/60 mt-1">{t('newtab_settings_hint')}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => chrome.runtime.openOptionsPage()}
+              className="px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              {t('newtab_settings_advanced')}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5 text-white/70" />
+            </button>
+          </div>
         </div>
 
         {/* 底部容器：左侧标签栏 + 右侧内容区 */}

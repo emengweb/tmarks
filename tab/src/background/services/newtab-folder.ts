@@ -9,6 +9,7 @@ import {
   TMARKS_STORAGE_KEY_HOME_ID,
   TMARKS_STORAGE_KEY_UUID,
 } from '../constants';
+import { logger } from '@/lib/utils/logger';
 
 export interface EnsureNewtabRootFolderResult {
   id: string;
@@ -43,7 +44,7 @@ async function getOrCreateWorkspaceUUID(): Promise<string> {
     }
     const newUUID = generateUUID();
     await chrome.storage.local.set({ [TMARKS_STORAGE_KEY_UUID]: newUUID });
-    console.log('[TMarks Background] 已生成工作区 UUID:', newUUID);
+    logger.log('[TMarks Background] 已生成工作区 UUID:', newUUID);
     return newUUID;
   } catch {
     return generateUUID();
@@ -185,7 +186,7 @@ export async function ensureNewtabRootFolder(): Promise<EnsureNewtabRootFolderRe
         // 验证 UUID 匹配（如果标题包含 UUID）
         const titleUUID = extractUUIDFromTitle(existingNode.title);
         if (titleUUID && titleUUID !== workspaceUUID) {
-          console.warn('[TMarks Background] 文件夹 UUID 不匹配，可能是其他扩展实例的文件夹');
+          logger.warn('[TMarks Background] 文件夹 UUID 不匹配，可能是其他扩展实例的文件夹');
           // 不使用这个文件夹，继续查找
         } else {
           // 确保文件夹在书签栏中
@@ -194,14 +195,14 @@ export async function ensureNewtabRootFolder(): Promise<EnsureNewtabRootFolderRe
             try {
               await chrome.bookmarks.move(savedId, { parentId: barId });
             } catch (error) {
-              console.warn('[TMarks Background] 无法移动根文件夹到书签栏:', error);
+              logger.warn('[TMarks Background] 无法移动根文件夹到书签栏:', error);
             }
           }
           // 如果是旧格式（带 UUID），升级标题（移除 UUID）
           if (titleUUID) {
             try {
               await chrome.bookmarks.update(savedId, { title: TMARKS_ROOT_TITLE });
-              console.log('[TMarks Background] 已升级文件夹标题，移除 UUID');
+              logger.log('[TMarks Background] 已升级文件夹标题，移除 UUID');
             } catch {
               // ignore
             }
@@ -209,7 +210,7 @@ export async function ensureNewtabRootFolder(): Promise<EnsureNewtabRootFolderRe
           return { id: savedId, wasRecreated: false };
         }
       }
-      console.log('[TMarks Background] 保存的根文件夹 ID 无效，尝试通过 UUID 查找...');
+      logger.log('[TMarks Background] 保存的根文件夹 ID 无效，尝试通过 UUID 查找...');
     }
 
     // 2. 通过 UUID 查找（兼容旧格式 TMarks [uuid]）
@@ -227,12 +228,12 @@ export async function ensureNewtabRootFolder(): Promise<EnsureNewtabRootFolderRe
       // 升级旧格式：移除标题中的 UUID
       try {
         await chrome.bookmarks.update(existingByUUID.id, { title: TMARKS_ROOT_TITLE });
-        console.log('[TMarks Background] 已升级文件夹标题，移除 UUID');
+        logger.log('[TMarks Background] 已升级文件夹标题，移除 UUID');
       } catch {
         // ignore
       }
       await saveNewtabRootFolderId(existingByUUID.id);
-      console.log('[TMarks Background] 通过 UUID 找到根文件夹:', existingByUUID.id);
+      logger.log('[TMarks Background] 通过 UUID 找到根文件夹:', existingByUUID.id);
       return { id: existingByUUID.id, wasRecreated: false };
     }
 
@@ -241,7 +242,7 @@ export async function ensureNewtabRootFolder(): Promise<EnsureNewtabRootFolderRe
     if (existingOldFormat) {
       try {
         await chrome.bookmarks.update(existingOldFormat.id, { title: expectedTitle });
-        console.log('[TMarks Background] 已升级旧格式文件夹，添加 UUID');
+        logger.log('[TMarks Background] 已升级旧格式文件夹，添加 UUID');
       } catch {
         // ignore
       }
@@ -255,7 +256,7 @@ export async function ensureNewtabRootFolder(): Promise<EnsureNewtabRootFolderRe
     if (existingVeryOld) {
       try {
         await chrome.bookmarks.update(existingVeryOld.id, { title: expectedTitle });
-        console.log('[TMarks Background] 已升级非常旧的文件夹格式');
+        logger.log('[TMarks Background] 已升级非常旧的文件夹格式');
       } catch {
         // ignore
       }
@@ -272,14 +273,14 @@ export async function ensureNewtabRootFolder(): Promise<EnsureNewtabRootFolderRe
 
     const wasRecreated = savedId !== null;
     if (wasRecreated) {
-      console.log('[TMarks Background] 根文件夹已重新创建，ID:', createdRoot.id, 'UUID:', workspaceUUID);
+      logger.log('[TMarks Background] 根文件夹已重新创建，ID:', createdRoot.id, 'UUID:', workspaceUUID);
     } else {
-      console.log('[TMarks Background] 根文件夹已创建，ID:', createdRoot.id, 'UUID:', workspaceUUID);
+      logger.log('[TMarks Background] 根文件夹已创建，ID:', createdRoot.id, 'UUID:', workspaceUUID);
     }
 
     return { id: createdRoot.id, wasRecreated };
   } catch (error) {
-    console.error('[TMarks Background] ensureNewtabRootFolder 失败:', error);
+    logger.error('[TMarks Background] ensureNewtabRootFolder 失败:', error);
     return null;
   }
 }
@@ -303,14 +304,14 @@ export async function ensureNewtabHomeFolder(
           try {
             await chrome.bookmarks.move(savedId, { parentId: rootId });
           } catch (error) {
-            console.warn('[TMarks Background] 无法移动首页文件夹到根目录:', error);
+            logger.warn('[TMarks Background] 无法移动首页文件夹到根目录:', error);
           }
         }
         await saveNewtabHomeFolderId(node.id);
         return { id: node.id, wasRecreated: false };
       }
     } catch {
-      console.log('[TMarks Background] 保存的首页文件夹 ID 无效，重新查找/创建');
+      logger.log('[TMarks Background] 保存的首页文件夹 ID 无效，重新查找/创建');
     }
   }
 
@@ -329,7 +330,7 @@ export async function ensureNewtabHomeFolder(
     await saveNewtabHomeFolderId(created.id);
     return { id: created.id, wasRecreated: savedId !== null };
   } catch (error) {
-    console.error('[TMarks Background] 创建首页文件夹失败:', error);
+    logger.error('[TMarks Background] 创建首页文件夹失败:', error);
     return null;
   }
 }
@@ -372,7 +373,7 @@ export async function handleBookmarkNodeRemoved(removedId: string) {
       }
     }
   } catch (error) {
-    console.error('[TMarks Background] 处理书签删除事件失败:', error);
+    logger.error('[TMarks Background] 处理书签删除事件失败:', error);
   }
 }
 
@@ -398,6 +399,6 @@ export async function handleBookmarkNodeMoved(id: string) {
       }
     }
   } catch (error) {
-    console.error('[TMarks Background] 处理书签移动事件失败:', error);
+    logger.error('[TMarks Background] 处理书签移动事件失败:', error);
   }
 }

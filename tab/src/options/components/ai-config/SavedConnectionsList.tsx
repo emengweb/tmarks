@@ -13,6 +13,8 @@ interface SavedConnectionsListProps {
   onApply: (connection: AIConnectionInfo, provider?: AIProvider) => void;
   onDelete: (connection: AIConnectionInfo, provider?: AIProvider) => void;
   currentProvider: AIProvider;
+  onSaveCurrentConfig: () => void;
+  hasCurrentConfig: boolean;
 }
 
 export function SavedConnectionsList({
@@ -22,6 +24,8 @@ export function SavedConnectionsList({
   onApply,
   onDelete,
   currentProvider,
+  onSaveCurrentConfig,
+  hasCurrentConfig,
 }: SavedConnectionsListProps) {
   const displayConnections = showAll ? connections : connections.slice(0, 3);
 
@@ -31,8 +35,10 @@ export function SavedConnectionsList({
         <h3 className="text-sm font-semibold text-[var(--tab-options-title)]">
           {t('options_saved_configs')}
         </h3>
-        <div className="flex items-center gap-2 text-xs text-[var(--tab-options-text-muted)]">
-          <span>{t('options_total_count', [connections.length.toString()])}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-[var(--tab-options-text-muted)]">
+            {t('options_total_count', [connections.length.toString()])}
+          </span>
           {connections.length > 3 && (
             <button
               type="button"
@@ -42,6 +48,18 @@ export function SavedConnectionsList({
               {showAll ? t('popup_back') : `${t('popup_more')} (${connections.length - 3})`}
             </button>
           )}
+          <button
+            type="button"
+            onClick={onSaveCurrentConfig}
+            disabled={!hasCurrentConfig}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              hasCurrentConfig
+                ? 'bg-[var(--tab-options-button-primary-bg)] text-[var(--tab-options-button-primary-text)] hover:bg-[var(--tab-options-button-primary-hover)] shadow-sm'
+                : 'bg-[var(--tab-options-button-hover-bg)] text-[var(--tab-options-text-muted)] cursor-not-allowed'
+            }`}
+          >
+            {t('options_save_config')}
+          </button>
         </div>
       </div>
 
@@ -77,12 +95,12 @@ export function SavedConnectionsList({
                   onClick={() => onApply(connection, connection.provider)}
                   className="flex-1 rounded-lg bg-[var(--tab-options-button-primary-bg)] px-3 py-2 text-xs font-medium text-[var(--tab-options-button-primary-text)] transition-colors hover:bg-[var(--tab-options-button-primary-hover)]"
                 >
-                  {t('options_use')}
+                  {t('options_apply')}
                 </button>
                 <button
                   type="button"
                   onClick={() => onDelete(connection, connection.provider)}
-                  className="rounded-lg border border-[color:var(--tab-options-button-border)] px-3 py-2 text-xs font-medium text-[var(--tab-options-button-text)] transition-colors hover:bg-[var(--tab-options-button-hover-bg)]"
+                  className="rounded-lg border border-[color:var(--tab-options-button-border)] px-3 py-2 text-xs font-medium text-[var(--tab-options-button-text)] transition-colors hover:bg-[var(--tab-options-danger-hover-bg)] hover:border-[var(--tab-options-danger-hover-border)] hover:text-[var(--tab-options-danger-hover-text)]"
                 >
                   {t('options_delete')}
                 </button>

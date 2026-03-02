@@ -1,22 +1,18 @@
 /**
  * 数据设置标签页
- * 简化版本：导入导出、存储管理、AI设置
+ * 简化版本：数据导出、存储管理、快照清理
  */
 
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Database, Download, Camera, Trash2, Bot, ChevronDown, ChevronUp } from 'lucide-react'
+import { Database, Download, Camera, Trash2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ExportSection } from '@/components/import-export/ExportSection'
-// 注意：批量导入功能已移至浏览器扩展（Tab）中实现
-// import { ImportSection } from '@/components/import-export/ImportSection'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { BOOKMARKS_QUERY_KEY } from '@/hooks/useBookmarks'
-import { TAGS_QUERY_KEY } from '@/hooks/useTags'
 import { useToastStore } from '@/stores/toastStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useR2StorageQuota } from '@/hooks/useStorage'
-import { AiSettingsTab } from './AiSettingsTab'
 import { SettingsSection, SettingsDivider } from '../SettingsSection'
 import type { ExportFormat, ExportOptions } from '@shared/import-export-types'
 
@@ -26,19 +22,13 @@ export function DataSettingsTab() {
   const { addToast } = useToastStore()
   const { accessToken } = useAuthStore()
   const { data: r2Quota, isLoading: isLoadingR2Quota } = useR2StorageQuota()
-  // 移除导入标签页，只保留导出
-  // const [activeTab, setActiveTab] = useState<'export' | 'import'>('export')
   const [isCleaningSnapshots, setIsCleaningSnapshots] = useState(false)
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false)
-  const [showAiSettings, setShowAiSettings] = useState(false)
 
   const handleExportComplete = (format: ExportFormat, options: ExportOptions) => {
     const details = `${format.toUpperCase()}${options.include_tags ? ' + tags' : ''}${options.include_metadata ? ' + metadata' : ''}`
     addToast('success', t('data.exportSuccess', { details }))
   }
-
-  // 移除导入完成处理函数
-  // const handleImportComplete = (result: ImportResult) => { ... }
 
   const handleCleanupAllSnapshots = async () => {
     setShowCleanupConfirm(true)
@@ -136,17 +126,11 @@ export function DataSettingsTab() {
 
       <SettingsDivider />
 
-      {/* 导入导出 */}
-      <SettingsSection icon={Download} title={t('data.importExport.title')} description={t('data.importExport.description')}>
+      {/* 导出数据 */}
+      <SettingsSection icon={Download} title={t('data.export.title')} description={t('data.export.description')}>
         <div className="space-y-4">
           <div className="p-4 rounded-lg border border-border bg-card">
             <ExportSection onExport={handleExportComplete} />
-            {/* 导入功能提示 */}
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
-                💡 批量导入功能已移至浏览器扩展中实现，请使用扩展的 Options 页面进行批量导入操作
-              </p>
-            </div>
           </div>
         </div>
       </SettingsSection>
@@ -174,37 +158,6 @@ export function DataSettingsTab() {
           </div>
         </div>
       </SettingsSection>
-
-      <SettingsDivider />
-
-      {/* AI 设置 - 可折叠 */}
-      <div className="space-y-4">
-        <button
-          onClick={() => setShowAiSettings(!showAiSettings)}
-          className="w-full flex items-center justify-between p-4 rounded-lg bg-card border border-border hover:border-primary/50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary" />
-            </div>
-            <div className="text-left">
-              <h3 className="text-sm font-semibold text-foreground">{t('data.aiSettings.title')}</h3>
-              <p className="text-xs text-muted-foreground">{t('data.aiSettings.description')}</p>
-            </div>
-          </div>
-          {showAiSettings ? (
-            <ChevronUp className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          )}
-        </button>
-
-        {showAiSettings && (
-          <div className="p-4 rounded-lg border border-border bg-card">
-            <AiSettingsTab />
-          </div>
-        )}
-      </div>
     </div>
   )
 }

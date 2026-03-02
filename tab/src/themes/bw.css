@@ -227,21 +227,25 @@
   --tab-message-info-border: var(--border);
   --tab-message-info-icon-bg: var(--secondary);
   --tab-message-info-icon: var(--foreground);
+  --tab-message-info-icon-text: var(--background);
 
   --tab-message-success-bg: var(--primary);
   --tab-message-success-border: var(--primary);
   --tab-message-success-icon-bg: var(--primary);
   --tab-message-success-icon: var(--primary-foreground);
+  --tab-message-success-icon-text: var(--primary-foreground);
 
   --tab-message-warning-bg: var(--secondary);
   --tab-message-warning-border: var(--input);
   --tab-message-warning-icon-bg: var(--secondary);
   --tab-message-warning-icon: var(--foreground);
+  --tab-message-warning-icon-text: var(--background);
 
   --tab-message-danger-bg: var(--muted);
   --tab-message-danger-border: var(--border);
   --tab-message-danger-icon-bg: var(--secondary);
   --tab-message-danger-icon: var(--foreground);
+  --tab-message-danger-icon-text: var(--background);
 
   /* 标签 */
   --tab-tag-selected-bg: var(--primary);
@@ -250,6 +254,18 @@
   --tab-tag-unselected-text: var(--card-foreground);
   --tab-tag-border: var(--border);
   --tab-tag-new-indicator: var(--muted-foreground);
+
+  /* Options 补充 - bw 主题 */
+  --tab-options-tag-bg: var(--muted);
+  --tab-options-tag-border: var(--border);
+  --tab-options-progress-bar-bg: var(--secondary);
+  --tab-options-progress-bar-fill: var(--primary);
+  --tab-options-danger-hover-bg: color-mix(in oklch, var(--destructive) 10%, transparent);
+  --tab-options-danger-hover-border: color-mix(in oklch, var(--destructive) 50%, transparent);
+  --tab-options-danger-hover-text: var(--foreground);
+  --tab-options-modal-close-text: color-mix(in oklch, var(--background) 70%, transparent);
+  --tab-options-modal-close-hover-border: color-mix(in oklch, var(--background) 20%, transparent);
+  --tab-options-modal-close-hover-text: var(--primary-foreground);
 }
 
 /* Dark mode */
@@ -289,4 +305,16 @@
   --tab-options-button-hover-bg: color-mix(in oklch, var(--foreground) 8%, transparent);
   --tab-options-modal-border: color-mix(in oklch, var(--foreground) 18%, transparent);
   --tab-options-switch-track-off: color-mix(in oklch, var(--foreground) 14%, transparent);
+
+  /* Options 补充 - 暗色 */
+  --tab-options-tag-bg: var(--muted);
+  --tab-options-tag-border: var(--border);
+  --tab-options-progress-bar-bg: var(--secondary);
+  --tab-options-progress-bar-fill: var(--primary);
+  --tab-options-danger-hover-bg: color-mix(in oklch, var(--destructive) 10%, transparent);
+  --tab-options-danger-hover-border: color-mix(in oklch, var(--destructive) 50%, transparent);
+  --tab-options-danger-hover-text: var(--foreground);
+  --tab-options-modal-close-text: color-mix(in oklch, var(--background) 70%, transparent);
+  --tab-options-modal-close-hover-border: color-mix(in oklch, var(--background) 20%, transparent);
+  --tab-options-modal-close-hover-text: var(--primary-foreground);
 }

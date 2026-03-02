@@ -118,9 +118,9 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* 主内容区 - 居中容器 */}
+      {/* 主内容区 */}
       <main className="w-full pb-16 sm:pb-6 pt-3 sm:pt-6 flex flex-col min-h-0 flex-1 bg-muted/30">
-        <div className="mx-auto w-full px-3 sm:px-6" style={{ maxWidth: '1000px' }}>
+        <div className="mx-auto w-full px-3 sm:px-6">
           <Outlet />
         </div>
       </main>

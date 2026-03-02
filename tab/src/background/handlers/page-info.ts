@@ -3,6 +3,7 @@
  */
 
 import type { Message, MessageResponse } from '@/types';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
 
 /**
  * 获取基本页面信息作为 fallback
@@ -106,7 +107,7 @@ export async function handleExtractPageInfo(message: Message): Promise<MessageRe
         files: [scriptPath],
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, TIMEOUTS.PAGE_LOAD));
 
       try {
         await sendMessageWithTimeout(tab.id, { type: 'PING' }, 1000);

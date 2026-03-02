@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react';
+import { sendMessage } from '@/lib/utils/messaging';
 import type { PageInfo } from '@/types';
 import { t } from '@/lib/i18n';
 
@@ -19,23 +20,10 @@ export interface NewtabSuggestion {
   confidence: number;
 }
 
-async function sendMessage<T = any>(message: { type: string; payload?: any }): Promise<T> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response: any) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      if (!response?.success) {
-        reject(new Error(response?.error || 'Unknown error'));
-        return;
-      }
-      resolve(response.data as T);
-    });
-  });
-}
-
-export function useNewtabState(onError: (error: string) => void) {
+export function useNewtabState(
+  onError: (error: string) => void,
+  onSuccess?: (message: string) => void
+) {
   const [newtabRootId, setNewtabRootId] = useState<string | null>(null);
   const [newtabFolders, setNewtabFolders] = useState<NewtabFolder[]>([]);
   const [currentNewtabFolderId, setCurrentNewtabFolderId] = useState<string | null>(null);
@@ -89,11 +77,6 @@ export function useNewtabState(onError: (error: string) => void) {
       return;
     }
 
-    if (!newtabFoldersLoaded) {
-      setNewtabFoldersLoadError(t('error_folders_not_loaded'));
-      return;
-    }
-
     try {
       setIsNewtabRecommending(true);
       const resp = await sendMessage<{ suggestedFolders: NewtabSuggestion[] }>({
@@ -105,6 +88,18 @@ export function useNewtabState(onError: (error: string) => void) {
         },
       });
       setNewtabSuggestions(resp.suggestedFolders || []);
+      
+      // 显示成功消息
+      if (onSuccess && resp.suggestedFolders && resp.suggestedFolders.length > 0) {
+        const count = resp.suggestedFolders.length;
+        const msg = `🎯 AI 推荐了 ${count} 个文件夹`;
+        onSuccess(msg);
+        
+        // 2秒后自动清除消息
+        setTimeout(() => {
+          onSuccess('');
+        }, 2000);
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : t('error_ai_recommend_failed'));
     } finally {

@@ -8,6 +8,7 @@ import { CacheStatusSection } from './components/CacheStatusSection';
 import { PresetModal } from './components/PresetModal';
 import { TMarksTagSection } from './components/TMarksTagSection';
 import { NewTabTagSection } from './components/NewTabTagSection';
+import type { FormDataSetter } from '@/types/form';
 import { ImportSection } from './components/ImportSection';
 import { useOptionsForm } from './hooks/useOptionsForm';
 import { t } from '@/lib/i18n';
@@ -62,8 +63,8 @@ export function Options() {
     () =>
       [
         { id: 'ai' as const, label: t('options_tab_ai') },
-        { id: 'tmarkstag' as const, label: 'TMarks' },
-        { id: 'newtabtag' as const, label: 'NewTab' },
+        { id: 'tmarkstag' as const, label: t('options_tab_tmarks_manage') },
+        { id: 'newtabtag' as const, label: t('options_tab_newtab_manage') },
         { id: 'import' as const, label: t('options_tab_import') },
         { id: 'preferences' as const, label: t('options_tab_preferences') },
         { id: 'tmarks' as const, label: t('options_tab_tmarks') },
@@ -73,6 +74,14 @@ export function Options() {
 
   return (
     <>
+      {/* Notifications - Fixed at top */}
+      <div className="pointer-events-none fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4">
+        <div className="pointer-events-auto w-full max-w-md space-y-2">
+          {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
+          {successMessage && <SuccessMessage message={successMessage} onDismiss={() => setSuccessMessage(null)} />}
+        </div>
+      </div>
+
       <div className="min-h-screen w-screen bg-gradient-to-br from-[var(--tab-options-page-bg-from)] via-[var(--tab-options-page-bg-via)] to-[var(--tab-options-page-bg-to)]">
         <div className="w-4/5 mx-auto px-6 py-12">
           <div className="relative overflow-hidden rounded-3xl border border-[color:var(--tab-options-card-border)] bg-[color:var(--tab-options-card-bg)] shadow-sm backdrop-blur mb-10">
@@ -85,19 +94,34 @@ export function Options() {
               <p className="mt-3 max-w-2xl text-base text-[var(--tab-options-text)]">
                 {t('options_description')}
               </p>
-              <div className="mt-6 flex flex-wrap gap-3 text-xs font-medium text-[var(--tab-options-text-muted)]">
-                <span className="px-3 py-1 rounded-full bg-[color:var(--tab-options-tag-bg)] border border-[color:var(--tab-options-tag-border)]">{t('options_tag_ai')}</span>
-                <span className="px-3 py-1 rounded-full bg-[color:var(--tab-options-tag-bg)] border border-[color:var(--tab-options-tag-border)]">{t('options_tag_sync')}</span>
-                <span className="px-3 py-1 rounded-full bg-[color:var(--tab-options-tag-bg)] border border-[color:var(--tab-options-tag-border)]">{t('options_tag_security')}</span>
+              <p className="mt-2 text-sm text-[var(--tab-options-text-muted)]">
+                {t('options_global_hint')}
+              </p>
+              <div className="mt-6 flex items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-3 text-xs font-medium text-[var(--tab-options-text-muted)]">
+                  <span className="px-3 py-1 rounded-full bg-[color:var(--tab-options-tag-bg)] border border-[color:var(--tab-options-tag-border)]">{t('options_tag_ai')}</span>
+                  <span className="px-3 py-1 rounded-full bg-[color:var(--tab-options-tag-bg)] border border-[color:var(--tab-options-tag-border)]">{t('options_tag_sync')}</span>
+                  <span className="px-3 py-1 rounded-full bg-[color:var(--tab-options-tag-bg)] border border-[color:var(--tab-options-tag-border)]">{t('options_tag_security')}</span>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="rounded-lg border border-[color:var(--tab-options-button-border)] px-4 py-2 text-sm font-medium text-[var(--tab-options-button-text)] hover:bg-[var(--tab-options-button-hover-bg)] transition-colors whitespace-nowrap"
+                  >
+                    {t('btn_reset')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isLoading}
+                    className="rounded-lg bg-[var(--tab-options-button-primary-bg)] px-4 py-2 text-sm font-medium text-[var(--tab-options-button-primary-text)] shadow-sm hover:bg-[var(--tab-options-button-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60 transition-colors whitespace-nowrap"
+                  >
+                    {isLoading ? t('btn_saving') : t('btn_save')}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="mb-10 space-y-4">
-            {error && (
-              <ErrorMessage message={error} onDismiss={() => setError(null)} />
-            )}
-            {successMessage && <SuccessMessage message={successMessage} />}
           </div>
 
           <div className="grid gap-8 lg:grid-cols-12">
@@ -119,27 +143,6 @@ export function Options() {
                         {tab.label}
                       </button>
                     ))}
-                  </div>
-
-                  <div className="mt-4 border-t border-[color:var(--tab-options-card-border)] pt-4 space-y-3">
-                    <div className="text-xs font-semibold text-[var(--tab-options-text-muted)]">{t('options_save_sync')}</div>
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        className="w-full rounded-lg border border-[color:var(--tab-options-button-border)] px-3 py-2 text-sm font-medium text-[var(--tab-options-button-text)] hover:bg-[var(--tab-options-button-hover-bg)] transition-colors"
-                      >
-                        {t('btn_reset')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isLoading}
-                        className="w-full rounded-lg bg-[var(--tab-options-button-primary-bg)] px-3 py-2 text-sm font-medium text-[var(--tab-options-button-primary-text)] shadow-sm hover:bg-[var(--tab-options-button-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
-                      >
-                        {isLoading ? t('btn_saving') : t('btn_save')}
-                      </button>
-                    </div>
                   </div>
                 </div>
 
@@ -168,11 +171,11 @@ export function Options() {
               )}
 
               {activeTab === 'tmarkstag' && (
-                <TMarksTagSection formData={formData} setFormData={setFormData} setSuccessMessage={setSuccessMessage} />
+                <TMarksTagSection formData={formData} setFormData={setFormData as FormDataSetter} setSuccessMessage={setSuccessMessage} />
               )}
 
               {activeTab === 'newtabtag' && (
-                <NewTabTagSection formData={formData} setFormData={setFormData} setSuccessMessage={setSuccessMessage} />
+                <NewTabTagSection formData={formData} setFormData={setFormData as FormDataSetter} setSuccessMessage={setSuccessMessage} />
               )}
 
               {activeTab === 'import' && (
@@ -180,27 +183,28 @@ export function Options() {
               )}
 
               {activeTab === 'preferences' && (
-                <PreferencesSection formData={formData} setFormData={setFormData} />
+                <PreferencesSection formData={formData} setFormData={setFormData as FormDataSetter} />
               )}
 
               {activeTab === 'tmarks' && (
-                <TMarksConfigSection formData={formData} setFormData={setFormData} />
+                <TMarksConfigSection formData={formData} setFormData={setFormData as FormDataSetter} />
               )}
-
             </div>
           </div>
         </div>
       </div>
 
-      <PresetModal
-        isOpen={isPresetModalOpen}
-        presetLabel={presetLabel}
-        presetError={presetError}
-        isSaving={isSavingPreset}
-        onClose={handleClosePresetModal}
-        onConfirm={handleConfirmSaveConnectionPreset}
-        onChangeLabel={setPresetLabel}
-      />
+      {isPresetModalOpen && (
+        <PresetModal
+          isOpen={isPresetModalOpen}
+          presetLabel={presetLabel}
+          presetError={presetError}
+          isSaving={isSavingPreset}
+          onClose={handleClosePresetModal}
+          onConfirm={handleConfirmSaveConnectionPreset}
+          onChangeLabel={setPresetLabel}
+        />
+      )}
     </>
   );
 }

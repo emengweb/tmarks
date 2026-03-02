@@ -115,21 +115,25 @@
   --tab-message-info-border: oklch(0.85 0.08 250);
   --tab-message-info-icon-bg: oklch(0.9 0.06 250);
   --tab-message-info-icon: oklch(0.5 0.2 250);
+  --tab-message-info-icon-text: oklch(1 0 0);
 
   --tab-message-success-bg: oklch(0.95 0.03 160);
   --tab-message-success-border: oklch(0.85 0.1 160);
   --tab-message-success-icon-bg: oklch(0.9 0.08 160);
   --tab-message-success-icon: oklch(0.55 0.15 160);
+  --tab-message-success-icon-text: oklch(1 0 0);
 
   --tab-message-warning-bg: oklch(0.95 0.04 85);
   --tab-message-warning-border: oklch(0.88 0.12 85);
   --tab-message-warning-icon-bg: oklch(0.92 0.1 85);
   --tab-message-warning-icon: oklch(0.65 0.18 60);
+  --tab-message-warning-icon-text: oklch(1 0 0);
 
   --tab-message-danger-bg: oklch(0.95 0.03 25);
   --tab-message-danger-border: oklch(0.85 0.1 25);
   --tab-message-danger-icon-bg: oklch(0.9 0.08 25);
   --tab-message-danger-icon: oklch(0.5 0.2 25);
+  --tab-message-danger-icon-text: oklch(1 0 0);
 
   /* ========================================
    * 标签选择
@@ -140,6 +144,27 @@
   --tab-tag-unselected-text: var(--tab-text);
   --tab-tag-border: var(--tab-border);
   --tab-tag-new-indicator: var(--tab-message-warning-icon);
+
+  /* ========================================
+   * Options 页面补充变量
+   * ======================================== */
+  /* 标签/代码块 */
+  --tab-options-tag-bg: oklch(0.97 0 0);
+  --tab-options-tag-border: var(--border);
+
+  /* 进度条 */
+  --tab-options-progress-bar-bg: oklch(0.92 0 0);
+  --tab-options-progress-bar-fill: var(--primary);
+
+  /* 危险操作 hover */
+  --tab-options-danger-hover-bg: oklch(0.65 0.18 25 / 0.1);
+  --tab-options-danger-hover-border: oklch(0.65 0.18 25 / 0.5);
+  --tab-options-danger-hover-text: oklch(0.5 0.2 25);
+
+  /* 模态框关闭按钮 */
+  --tab-options-modal-close-text: var(--muted-foreground);
+  --tab-options-modal-close-hover-border: var(--border);
+  --tab-options-modal-close-hover-text: var(--foreground);
 }
 
 /* ========================================
@@ -173,19 +198,31 @@
   --tab-message-info-border: oklch(0.35 0.08 250);
   --tab-message-info-icon-bg: oklch(0.3 0.06 250);
   --tab-message-info-icon: oklch(0.75 0.12 250);
+  --tab-message-info-icon-text: oklch(0.1 0 0);
 
   --tab-message-success-bg: oklch(0.2 0.03 160);
   --tab-message-success-border: oklch(0.4 0.1 160);
   --tab-message-success-icon-bg: oklch(0.3 0.08 160);
   --tab-message-success-icon: oklch(0.75 0.12 160);
+  --tab-message-success-icon-text: oklch(0.1 0 0);
 
   --tab-message-warning-bg: oklch(0.2 0.04 60);
   --tab-message-warning-border: oklch(0.45 0.12 60);
   --tab-message-warning-icon-bg: oklch(0.35 0.1 60);
   --tab-message-warning-icon: oklch(0.8 0.15 60);
+  --tab-message-warning-icon-text: oklch(0.1 0 0);
 
   --tab-message-danger-bg: oklch(0.2 0.03 25);
   --tab-message-danger-border: oklch(0.45 0.12 25);
   --tab-message-danger-icon-bg: oklch(0.35 0.1 25);
   --tab-message-danger-icon: oklch(0.8 0.12 25);
+  --tab-message-danger-icon-text: oklch(0.1 0 0);
+
+  /* Options 页面补充变量 - 暗色 */
+  --tab-options-tag-bg: oklch(0.2 0 0);
+  --tab-options-progress-bar-bg: oklch(0.25 0 0);
+  --tab-options-progress-bar-fill: var(--primary);
+  --tab-options-danger-hover-bg: oklch(0.6 0.18 25 / 0.1);
+  --tab-options-danger-hover-border: oklch(0.6 0.18 25 / 0.5);
+  --tab-options-danger-hover-text: oklch(0.8 0.12 25);
 }

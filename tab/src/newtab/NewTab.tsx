@@ -1,31 +1,28 @@
 /**
- * NewTab 主组件
+ * NewTab 主组件（协调器）
  */
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, FolderPlus } from 'lucide-react';
 import { t } from '@/lib/i18n';
-import { useNewtabStore } from './hooks/useNewtabStore';
-import { Clock } from './components/Clock';
-import { SearchBar } from './components/SearchBar';
-import { WidgetGrid } from './components/WidgetGrid';
-import { Wallpaper } from './components/Wallpaper';
-import { DockBar } from './components/DockBar';
-import { Greeting } from './components/Greeting';
-import { LunarDate } from './components/LunarDate';
-import { Poetry } from './components/Poetry';
-import { GroupSidebar } from './components/GroupSidebar';
+import { useNewtabStore, useFaviconCache } from './hooks';
+import { useNewtabHandlers } from './hooks/useNewtabHandlers';
+import { Clock, Greeting, LunarDate, Poetry } from './components/display';
+import { SearchBar, ShortcutContextMenu } from './components/shared';
+import { GridContainer } from './components/grid';
+import { Wallpaper, DockBar, GroupSidebar, RightSidebar } from './components/layout';
 import { SettingsPanel } from './components/SettingsPanel';
-import { AddShortcutModal } from './components/AddShortcutModal';
-import { AddBookmarkFolderModal } from './components/AddBookmarkFolderModal';
-import { BatchEditModal } from './components/BatchEditModal';
-import { BatchEditTip } from './components/BatchEditTip';
-import { ShortcutContextMenu } from './components/ShortcutContextMenu';
-import { FAVICON_API } from './constants';
+import { AddShortcutModal, AddBookmarkFolderModal, BatchEditModal, BatchEditTip } from './components/modals';
 import { useBrowserBookmarksSync } from './features/browser-sync';
+import { createShortcut, createFolder } from './types/core';
+import { getFaviconUrl } from './utils/shortcuts';
 
 export function NewTab() {
-  const { settings, isLoading, loadData, updateSettings, shortcutGroups, activeGroupId, setActiveGroup, addGridItem } = useNewtabStore();
+  const { settings, isLoading, loadData, updateSettings, groups, activeView, activeGroupId, setActiveGroup, addItem, addHomeItem } = useNewtabStore();
+  
+  useFaviconCache();
+  useBrowserBookmarksSync();
+  
   const [showSettings, setShowSettings] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddFolderModal, setShowAddFolderModal] = useState(false);
@@ -34,166 +31,38 @@ export function NewTab() {
   const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  const isWheelLocked = useRef(false);
-  const longPressTimerRef = useRef<number | null>(null);
-  const longPressStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  
-  // 使用 ref 存储最新的状态，避免 handleWheel 频繁重建
-  const stateRef = useRef({ shortcutGroups, activeGroupId, setActiveGroup });
-  stateRef.current = { shortcutGroups, activeGroupId, setActiveGroup };
 
-  useBrowserBookmarksSync();
+  const handlers = useNewtabHandlers({
+    groups,
+    activeView,
+    activeGroupId,
+    setActiveGroup,
+    setIsEditing,
+    setContextMenu,
+  });
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // 滚轮切换分组 - 使用稳定的回调，通过 ref 访问最新状态
-  // 页面分三区：左30%和右30%切换分组，中间40%切换图标翻页
-  const handleWheel = useCallback((e: WheelEvent) => {
-    const { shortcutGroups: groups, activeGroupId: currentGroupId, setActiveGroup: setGroup } = stateRef.current;
-    
-    // 如果正在锁定中，忽略滚轮事件
-    if (isWheelLocked.current) {
-      return;
-    }
-    
-    // 检查是否在可滚动元素内（弹窗等）
-    const target = e.target as HTMLElement;
-    const scrollableParent = target.closest('.overflow-y-auto, .overflow-auto');
-    if (scrollableParent) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollableParent;
-      if (scrollHeight > clientHeight) {
-        if (e.deltaY < 0 && scrollTop > 0) return;
-        if (e.deltaY > 0 && scrollTop + clientHeight < scrollHeight) return;
-      }
-    }
-
-    // 根据鼠标位置判断区域：左30% | 中间40% | 右30%
-    const mouseX = e.clientX;
-    const windowWidth = window.innerWidth;
-    const leftBoundary = windowWidth * 0.3;
-    const rightBoundary = windowWidth * 0.7;
-    
-    // 中间 40% 区域：让 WidgetGrid 处理图标翻页，不在这里处理
-    if (mouseX >= leftBoundary && mouseX <= rightBoundary) {
-      // 中间区域不切换分组，交给 WidgetGrid 的 handleWheel 处理
-      return;
-    }
-
-    // 左30% 或 右30% 区域：切换分组
-    const groupIds = groups.map(g => g.id);
-    if (groupIds.length === 0) return;
-    
-    const currentIndex = groupIds.indexOf(currentGroupId || '');
-    
-    if (currentIndex === -1) {
-      setGroup(groupIds[0]);
-      return;
-    }
-    
-    let newIndex = currentIndex;
-    if (e.deltaY > 0) {
-      // 向下滚动，切换到下一个分组
-      newIndex = Math.min(currentIndex + 1, groupIds.length - 1);
-    } else if (e.deltaY < 0) {
-      // 向上滚动，切换到上一个分组
-      newIndex = Math.max(currentIndex - 1, 0);
-    }
-
-    if (newIndex !== currentIndex) {
-      e.preventDefault();
-      setGroup(groupIds[newIndex]);
-      isWheelLocked.current = true;
-      if (wheelTimeoutRef.current) {
-        clearTimeout(wheelTimeoutRef.current);
-      }
-      wheelTimeoutRef.current = setTimeout(() => {
-        isWheelLocked.current = false;
-      }, 300);
-    }
-  }, []); // 空依赖数组，handleWheel 永远不会重建
-
-  // 右键菜单处理
-  const handleContextMenu = useCallback((e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    // 排除设置面板、弹窗等区域
-    const isInModal = target.closest('[role="dialog"]') || target.closest('.glass-modal') || target.closest('.glass-modal-dark');
-    // 排除输入框
-    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-    
-    if (!isInModal && !isInput) {
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY });
-    }
-  }, []);
-
-  // 长按 2 秒切换编辑模式
-  const clearLongPress = useCallback(() => {
-    if (longPressTimerRef.current) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    longPressStartPosRef.current = null;
-  }, []);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return; // 仅左键
-    const target = e.target as HTMLElement;
-    // 排除设置面板、弹窗、输入框、按钮等交互元素
-    const isInModal = target.closest('[role="dialog"]') || target.closest('.glass-modal') || target.closest('.glass-modal-dark');
-    const isInteractive = target.closest('button') || target.closest('a') || target.closest('input') || target.closest('textarea');
-    const isShortcutItem = target.closest('[data-shortcut-item]');
-    
-    if (isInModal || isInteractive || isShortcutItem) return;
-    
-    clearLongPress();
-    longPressStartPosRef.current = { x: e.clientX, y: e.clientY };
-    longPressTimerRef.current = window.setTimeout(() => {
-      setIsEditing((prev) => !prev);
-      clearLongPress();
-    }, 2000);
-  }, [clearLongPress]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!longPressStartPosRef.current) return;
-    const dx = e.clientX - longPressStartPosRef.current.x;
-    const dy = e.clientY - longPressStartPosRef.current.y;
-    if (Math.hypot(dx, dy) > 10) {
-      clearLongPress();
-    }
-  }, [clearLongPress]);
-
-  const handlePointerUp = useCallback(() => {
-    clearLongPress();
-  }, [clearLongPress]);
-
   // 监听滚轮事件
   useEffect(() => {
     if (!settings.showShortcuts) return;
     
-    // 移除 passive: true，允许阻止默认行为
-    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('wheel', handlers.handleWheel, { passive: false });
     return () => {
-      window.removeEventListener('wheel', handleWheel);
-      if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
+      window.removeEventListener('wheel', handlers.handleWheel);
+      if (handlers.wheelTimeoutRef.current) clearTimeout(handlers.wheelTimeoutRef.current);
     };
-  }, [handleWheel, settings.showShortcuts]);
+  }, [handlers.handleWheel, settings.showShortcuts, handlers.wheelTimeoutRef]);
 
   // 监听右键菜单事件
   useEffect(() => {
-    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('contextmenu', handlers.handleContextMenu);
     return () => {
-      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('contextmenu', handlers.handleContextMenu);
     };
-  }, [handleContextMenu]);
-
-  // 壁纸刷新回调
-  const handleWallpaperRefresh = useCallback(() => {
-    // 壁纸刷新后的回调，可以在这里添加提示等
-    console.log('Wallpaper refreshed');
-  }, []);
+  }, [handlers.handleContextMenu]);
 
   if (isLoading) {
     return (
@@ -206,18 +75,18 @@ export function NewTab() {
   return (
     <div
       className="relative w-full h-full overflow-hidden"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
+      onPointerDown={handlers.handlePointerDown}
+      onPointerMove={handlers.handlePointerMove}
+      onPointerUp={handlers.handlePointerUp}
+      onPointerLeave={handlers.handlePointerUp}
     >
       {/* 壁纸背景 */}
-      <Wallpaper config={settings.wallpaper} onRefresh={handleWallpaperRefresh} />
+      <Wallpaper config={settings.wallpaper} onRefresh={handlers.handleWallpaperRefresh} />
 
 
 
-      {/* 主内容 - 参考 mtab 布局，内容偏上 */}
-      <div className="relative z-10 w-full h-full flex flex-col items-center px-4 pt-[12vh] pb-8 overflow-y-auto">
+      {/* 主内容 - 响应式布局，小屏幕减少顶部间距 */}
+      <div className="relative z-10 w-full h-full flex flex-col items-center px-4 pt-[8vh] sm:pt-[12vh] pb-8 overflow-y-auto">
         {/* 问候语 */}
         {settings.showGreeting && (
           <div className="mb-1 animate-fadeIn">
@@ -251,9 +120,9 @@ export function NewTab() {
           </div>
         )}
 
-        {/* 搜索框 - 提高层级确保下拉框不被遮挡 */}
+        {/* 搜索框 - 调整层级避免遮挡 */}
         {settings.showSearch && (
-          <div className="w-full max-w-2xl mb-6 animate-fadeIn px-4 relative z-50">
+          <div className="w-full max-w-2xl mb-6 animate-fadeIn px-4 relative z-20">
             <SearchBar
               engine={settings.searchEngine}
               enableSuggestions={settings.enableSearchSuggestions}
@@ -266,7 +135,7 @@ export function NewTab() {
         {settings.showShortcuts && (
           <div className="w-full max-w-5xl animate-fadeIn px-4 shortcut-area">
             <div className="flex items-start gap-4">
-              <WidgetGrid
+              <GridContainer
                 columns={settings.shortcutColumns}
                 isBatchMode={showBatchEdit}
                 batchSelectedIds={batchSelectedIds}
@@ -283,6 +152,9 @@ export function NewTab() {
       {/* 左侧分组侧边栏 */}
       <GroupSidebar onOpenSettings={() => setShowSettings(true)} />
 
+      {/* 右侧分组导航栏 - 显示第 11-20 个分组 */}
+      <RightSidebar />
+
       {/* 底部 Dock 栏 - 置顶书签 */}
       {settings.showPinnedBookmarks && <DockBar />}
 
@@ -295,19 +167,31 @@ export function NewTab() {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={(url, title) => {
-            const domain = new URL(url).hostname;
-            addGridItem('shortcut', {
-              groupId: activeGroupId || undefined,
-              shortcut: {
+            if (activeView === 'home') {
+              // 首页模式
+              const item = createShortcut({
+                groupId: '__home__',
                 url,
                 title,
-                favicon: `${FAVICON_API}${domain}&sz=64`,
-              },
-            });
+                favicon: getFaviconUrl(url),
+              });
+              addHomeItem(item);
+            } else {
+              // 分组模式
+              const item = createShortcut({
+                groupId: activeGroupId || groups[0]?.id || '__home__',
+                url,
+                title,
+                favicon: getFaviconUrl(url),
+              });
+              addItem(item);
+            }
           }}
           groupName={
-            activeGroupId
-              ? shortcutGroups.find((g) => g.id === activeGroupId)?.name
+            activeView === 'home'
+              ? '首页'
+              : activeGroupId
+              ? groups.find((g) => g.id === activeGroupId)?.name
               : undefined
           }
         />
@@ -334,12 +218,23 @@ export function NewTab() {
       <AddBookmarkFolderModal
         isOpen={showAddFolderModal}
         onClose={() => setShowAddFolderModal(false)}
-        onSave={(name) =>
-          addGridItem('bookmarkFolder', {
-            groupId: activeGroupId ?? undefined,
-            bookmarkFolder: { title: name },
-          })
-        }
+        onSave={(name) => {
+          if (activeView === 'home') {
+            // 首页模式
+            const item = createFolder({
+              groupId: '__home__',
+              title: name,
+            });
+            addHomeItem(item);
+          } else {
+            // 分组模式
+            const item = createFolder({
+              groupId: activeGroupId || groups[0]?.id || '__home__',
+              title: name,
+            });
+            addItem(item);
+          }
+        }}
       />
 
       {/* 右键菜单 */}

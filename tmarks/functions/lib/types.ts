@@ -1,6 +1,6 @@
 export interface Env {
   DB: D1Database
-  TMARKS_KV?: KVNamespace // 统一缓存（公开分享、速率限制等）
+  // TMARKS_KV?: KVNamespace // 统一缓存（公开分享、速率限制等）- 已移除
   SNAPSHOTS_BUCKET?: R2Bucket // R2 bucket for bookmark snapshots
   R2_PUBLIC_URL?: string // （可选）封面图使用 R2 存储时的对外访问域名（如 https://r2.example.com）
   R2_MAX_TOTAL_BYTES?: string // R2 总存储配额（字节），可选；不配置或 <= 0 表示不限制

@@ -4,7 +4,8 @@
  */
 
 import { db } from '@/lib/db';
-import { createTMarksClient } from '@/lib/api/tmarks';
+import { createTMarksClient } from '@/lib/api';
+import { logger } from '@/lib/utils/logger';
 import type { TabGroupInput, TabGroupResult } from '@/types';
 import type { BookmarkSiteConfig } from '@/types';
 import { EXTERNAL_SERVICES, normalizeApiUrl } from '@/lib/constants/urls';
@@ -126,19 +127,19 @@ export async function collectCurrentWindowTabs(
 
         // Update local record with remote ID
         await db.tabGroups.update(localGroupId, {
-          remoteId: response.data.tab_group.id,
+          remoteId: response?.data?.tab_group?.id,
         });
 
         const modeText = collectionMode === 'folder' ? t('msg_to_folder') : '';
         return {
           success: true,
-          groupId: response.data.tab_group.id,
+          groupId: response?.data?.tab_group?.id || localGroupId.toString(),
           message: t('msg_tabs_collected', [String(validTabs.length), modeText]),
         };
       }
     } catch (error: any) {
       // Log error details
-      console.error('[TabCollection] Sync to TMarks failed:', {
+      logger.error('[TabCollection] Sync to TMarks failed:', {
         message: error.message,
         code: error.code,
         status: error.status,
@@ -329,19 +330,19 @@ export async function syncPendingTabGroups(config: BookmarkSiteConfig): Promise<
 
         // Update local record with remote ID
         await db.tabGroups.update(group.id!, {
-          remoteId: response.data.tab_group.id,
+          remoteId: response?.data?.tab_group?.id,
         });
 
         synced++;
       } catch (error) {
         // Skip this group and continue with others
-        console.error('[TabCollection] Failed to sync group:', group.id, error);
+        logger.error('[TabCollection] Failed to sync group:', group.id, error);
       }
     }
 
     return synced;
   } catch (error) {
-    console.error('[TabCollection] syncPendingTabGroups error:', error);
+    logger.error('[TabCollection] syncPendingTabGroups error:', error);
     return 0;
   }
 }

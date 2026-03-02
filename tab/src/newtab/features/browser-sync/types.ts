@@ -2,7 +2,15 @@
  * 浏览器书签同步类型定义
  */
 
-import type { ShortcutGroup } from '../../types';
+import type { Group } from '../../types/core';
+
+/**
+ * 扩展的书签节点类型（包含 Chrome API 中可选但实际存在的字段）
+ */
+export interface ExtendedBookmarkTreeNode extends chrome.bookmarks.BookmarkTreeNode {
+  parentId: string;
+  index: number;
+}
 
 /** 确保根文件夹结果 */
 export interface EnsureRootFolderResult {
@@ -52,15 +60,15 @@ export type AddGroupFn = (
 export type SetGroupBookmarkFolderIdFn = (groupId: string, folderId: string | null) => void;
 
 /** 获取分组列表函数类型 */
-export type GetGroupsFn = () => ShortcutGroup[];
+export type GetGroupsFn = () => Group[];
 
-/** GridItem 转换选项 */
+/** Item 转换选项 */
 export interface ToGridItemsOptions {
   groupId: string;
   parentGridId: string | null;
 }
 
-/** 替换 GridItems 选项 */
+/** 替换 Items 选项 */
 export interface ReplaceGridItemsOptions {
   groupIds?: string[];
 }

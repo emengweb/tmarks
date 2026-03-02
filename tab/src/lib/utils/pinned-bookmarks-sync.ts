@@ -3,6 +3,8 @@
  * 用于在 TMarks 页面操作置顶时通知 NewTab 页面刷新
  */
 
+import { logger } from './logger';
+
 /**
  * 通知所有 NewTab 页面刷新置顶书签
  * 在 TMarks 页面设置/取消置顶时调用
@@ -13,8 +15,8 @@ export async function notifyPinnedBookmarksChanged(): Promise<void> {
       type: 'REFRESH_PINNED_BOOKMARKS',
       payload: { timestamp: Date.now() }
     });
-    console.log('[PinnedBookmarks] 已通知 NewTab 页面刷新');
+    logger.log('[PinnedBookmarks] 已通知 NewTab 页面刷新');
   } catch (error) {
-    console.error('[PinnedBookmarks] 通知失败:', error);
+    logger.error('[PinnedBookmarks] 通知失败:', error);
   }
 }

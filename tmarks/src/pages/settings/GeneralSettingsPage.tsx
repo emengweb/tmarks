@@ -108,7 +108,7 @@ export function GeneralSettingsPage() {
   ]
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 mx-auto space-y-4 sm:space-y-6">
+    <div className="w-[80%] mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
       {/* 页面标题卡片 */}
       <div className="card p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">

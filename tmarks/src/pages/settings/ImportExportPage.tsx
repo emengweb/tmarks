@@ -7,15 +7,11 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ExportSection } from '../../components/import-export/ExportSection'
-// 注意：批量导入功能已移至浏览器扩展（Tab）中实现
-// import { ImportSection } from '../../components/import-export/ImportSection'
 import type { ExportFormat, ExportOptions } from '@shared/import-export-types'
 
 export function ImportExportPage() {
   const { t } = useTranslation('import')
   const navigate = useNavigate()
-  // 移除导入标签页，只保留导出
-  // const [activeTab, setActiveTab] = useState<'export' | 'import'>('export')
   const [lastOperation, setLastOperation] = useState<{
     type: 'export'
     timestamp: string
@@ -31,9 +27,6 @@ export function ImportExportPage() {
       details: t('page.exportDetails', { format: format.toUpperCase(), tags, metadata })
     })
   }
-
-  // 移除导入完成处理函数
-  // const handleImportComplete = (result: ImportResult) => { ... }
 
   return (
     <div className="min-h-screen bg-background pb-16 sm:pb-0">
@@ -82,12 +75,6 @@ export function ImportExportPage() {
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               {t('page.exportDesc')}
             </p>
-            {/* 导入功能提示 */}
-            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
-                💡 批量导入功能已移至浏览器扩展中实现，请使用扩展的 Options 页面进行批量导入操作
-              </p>
-            </div>
           </div>
         </div>
 

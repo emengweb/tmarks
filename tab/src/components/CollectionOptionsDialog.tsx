@@ -3,6 +3,7 @@ import { Folder, Plus, List, X } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useScrollLock } from '@/lib/hooks/useScrollLock';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
 import type { TMarksTabGroup } from '@/lib/api/tab-groups';
 
 export interface CollectionOption {
@@ -110,7 +111,7 @@ export function CollectionOptionsDialog({
 
   const handleClose = () => {
     setIsVisible(false);
-    setTimeout(onCancel, 150);
+    setTimeout(onCancel, TIMEOUTS.ANIMATION);
   };
 
   return (

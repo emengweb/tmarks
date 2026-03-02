@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
+import { DURATIONS } from '@/lib/constants/durations';
 
 interface SuccessMessageProps {
   message: string;
   onDismiss?: () => void;
-  autoHideDuration?: number; // milliseconds, default 3000
+  autoHideDuration?: number; // milliseconds, default DURATIONS.THREE_SECONDS
 }
 
-export function SuccessMessage({ message, onDismiss, autoHideDuration = 3000 }: SuccessMessageProps) {
+export function SuccessMessage({ message, onDismiss, autoHideDuration = DURATIONS.THREE_SECONDS }: SuccessMessageProps) {
   useEffect(() => {
     if (onDismiss && autoHideDuration > 0) {
       const timer = setTimeout(() => {

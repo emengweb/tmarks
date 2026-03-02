@@ -1,12 +1,9 @@
 /**
- * Popup 主组件
+ * Popup 主组件（协调器）
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
-import { TagList } from '@/components/TagList';
-import { PageInfoCard } from '@/components/PageInfoCard';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { SuccessMessage } from '@/components/SuccessMessage';
 import { LoadingMessage } from '@/components/LoadingMessage';
@@ -14,28 +11,15 @@ import { BookmarkExistsDialog } from '@/components/BookmarkExistsDialog';
 import { ModeSelector } from './ModeSelector';
 import { TabCollectionView } from './TabCollectionView';
 import { NewtabModeView } from './components/NewtabModeView';
+import { BookmarkModeView } from './components/BookmarkModeView';
+import { OnboardingView } from './components/OnboardingView';
 import { useNewtabState } from './hooks/useNewtabState';
-import { getExistingTagClass, getSelectedTagClass, type TagTheme } from '@/lib/utils/tagStyles';
+import { usePopupState, useTitleSync, useDescriptionSync } from './hooks/usePopupState';
+import { useBookmarkHandlers } from './hooks/useBookmarkHandlers';
+import { useNewtabHandlers } from './hooks/useNewtabHandlers';
+import { type TagTheme } from '@/lib/utils/tagStyles';
 import { applyTheme, applyThemeStyle } from '@/lib/utils/themeManager';
 import { t } from '@/lib/i18n';
-
-type ViewMode = 'selector' | 'bookmark' | 'newtab' | 'tabCollection';
-
-async function sendMessage<T = any>(message: { type: string; payload?: any }): Promise<T> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response: any) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      if (!response?.success) {
-        reject(new Error(response?.error || 'Unknown error'));
-        return;
-      }
-      resolve(response.data as T);
-    });
-  });
-}
 
 export function Popup() {
   const {
@@ -49,26 +33,45 @@ export function Popup() {
     createSnapshotForBookmark, lastRecommendationSource, lastSaveDurationMs
   } = useAppStore();
 
-  // NewTab 状态
-  const newtabState = useNewtabState(setError);
+  const newtabState = useNewtabState(setError, setSuccessMessage);
+  const popupState = usePopupState();
 
-  const [customTagInput, setCustomTagInput] = useState('');
-  const [titleOverride, setTitleOverride] = useState('');
-  const [descriptionOverride, setDescriptionOverride] = useState('');
-  const [initialized, setInitialized] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('selector');
-  const [showTitleEdit, setShowTitleEdit] = useState(false);
-  const [showDescEdit, setShowDescEdit] = useState(false);
+  useTitleSync(currentPage?.title, popupState.setTitleOverride);
+  useDescriptionSync(currentPage?.description, popupState.setDescriptionOverride);
+
+  const bookmarkHandlers = useBookmarkHandlers({
+    currentPage,
+    selectedTags,
+    titleOverride: popupState.titleOverride,
+    descriptionOverride: popupState.descriptionOverride,
+    includeThumbnail,
+    createSnapshot,
+    setError,
+    setCurrentPage,
+    setTitleOverride: popupState.setTitleOverride,
+    setDescriptionOverride: popupState.setDescriptionOverride,
+    setIncludeThumbnail,
+    setCreateSnapshot,
+    saveBookmark,
+    addCustomTag,
+    toggleTag,
+  });
+
+  const newtabHandlers = useNewtabHandlers({
+    currentPage,
+    config,
+    titleOverride: popupState.titleOverride,
+    newtabFoldersLoaded: newtabState.newtabFoldersLoaded,
+    newtabFolders: newtabState.newtabFolders,
+    newtabSuggestions: newtabState.newtabSuggestions,
+    currentNewtabFolderId: newtabState.currentNewtabFolderId,
+    newtabRootId: newtabState.newtabRootId,
+    setError,
+    setSuccessMessage,
+    setLoadingMessage,
+  });
 
   const tagTheme: TagTheme = (config?.preferences?.tagTheme ?? 'classic') as TagTheme;
-
-  useEffect(() => {
-    setTitleOverride(currentPage?.title ?? '');
-  }, [currentPage?.title]);
-
-  useEffect(() => {
-    setDescriptionOverride(currentPage?.description ?? '');
-  }, [currentPage?.description]);
 
   useEffect(() => {
     loadConfig();
@@ -90,139 +93,54 @@ export function Popup() {
 
   // Initialize bookmark mode
   useEffect(() => {
-    if (!config || initialized || viewMode !== 'bookmark') return;
+    if (!config || popupState.initialized || popupState.viewMode !== 'bookmark') return;
     const init = async () => {
-      if (!isConfigured) { setInitialized(true); return; }
+      if (!isConfigured) { popupState.setInitialized(true); return; }
       try {
         await extractPageInfo();
         const shouldUseAI = config.preferences.enableAI && Boolean(config.aiConfig.apiKeys[config.aiConfig.provider]);
         if (shouldUseAI) await recommendTags();
-        setInitialized(true);
+        popupState.setInitialized(true);
       } catch (err) {
         setError(err instanceof Error ? err.message : t('error_init_failed'));
-        setInitialized(true);
+        popupState.setInitialized(true);
       }
     };
     init();
-  }, [config, viewMode]);
+  }, [config, popupState.viewMode]);
 
   // Initialize newtab mode
   useEffect(() => {
-    if (initialized || viewMode !== 'newtab') return;
+    if (!config || popupState.initialized || popupState.viewMode !== 'newtab') return;
     const init = async () => {
       try {
         await extractPageInfo();
         await newtabState.loadNewtabFolders();
+        
+        const shouldUseAI = config.preferences.enableNewtabAI && Boolean(config.aiConfig.apiKeys[config.aiConfig.provider]);
+        if (shouldUseAI) {
+          const page = useAppStore.getState().currentPage;
+          if (page) {
+            await newtabState.handleRecommendNewtabFolder(page);
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : t('error_init_failed'));
       } finally {
-        setInitialized(true);
+        popupState.setInitialized(true);
       }
     };
     init();
-  }, [initialized, viewMode]);
-
-  const handleSave = async () => {
-    if (selectedTags.length === 0) { setError(t('error_select_tag')); return; }
-    await saveBookmark();
-  };
-
-  const handleAddCustomTag = () => {
-    const tagName = customTagInput.trim();
-    if (tagName) { addCustomTag(tagName); setCustomTagInput(''); }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleAddCustomTag();
-  };
-
-  const handleApplyTitleOverride = () => {
-    const trimmed = titleOverride.trim();
-    if (!trimmed || !currentPage) return;
-    setCurrentPage({ ...currentPage, title: trimmed });
-    setTitleOverride(trimmed);
-  };
-
-  const handleApplyDescriptionOverride = () => {
-    if (!currentPage) return;
-    const trimmed = descriptionOverride.trim();
-    setCurrentPage({ ...currentPage, description: trimmed || undefined });
-    setDescriptionOverride(trimmed);
-  };
-
-  const handleToggleThumbnail = () => {
-    if (!currentPage?.thumbnail) { setIncludeThumbnail(false); return; }
-    setIncludeThumbnail(!includeThumbnail);
-  };
+  }, [config, popupState.viewMode]);
 
   const openOptions = () => chrome.runtime.openOptionsPage();
-  const handleSelectBookmark = () => { setViewMode('bookmark'); setInitialized(false); };
-  const handleSelectTabCollection = () => setViewMode('tabCollection');
-  const handleSelectNewTab = () => { setViewMode('newtab'); setInitialized(false); };
-  const handleBackToSelector = () => setViewMode('selector');
-
-  // 判断用户是否手动选择了文件夹（不是根目录）
-  const hasUserSelectedFolder = Boolean(newtabState.currentNewtabFolderId && 
-    newtabState.currentNewtabFolderId !== newtabState.newtabRootId);
-
-  // 获取当前保存目标路径（用于显示）
-  const currentSaveTargetPath = (() => {
-    if (!newtabState.newtabFoldersLoaded) return 'TMarks';
-    const folder = newtabState.newtabFolders.find(f => f.id === newtabState.currentNewtabFolderId);
-    return folder?.path || 'TMarks';
-  })();
-
-  const handleSaveToNewTab = async () => {
-    if (!currentPage?.url) { setError(t('error_no_page_info')); return; }
-    const finalTitle = titleOverride.trim() || currentPage.title;
-    try {
-      let targetFolderId = newtabState.currentNewtabFolderId || undefined;
-      if (!newtabState.newtabFoldersLoaded) targetFolderId = undefined;
-
-      // 只有在用户未手动选择文件夹时，才自动调用 AI 推荐
-      const shouldAutoRecommend = !hasUserSelectedFolder && Boolean(
-        config && config.preferences.enableNewtabAI && config.aiConfig.apiKeys[config.aiConfig.provider]
-      );
-      
-      if (shouldAutoRecommend && newtabState.newtabFoldersLoaded) {
-        try {
-          setLoadingMessage(t('msg_ai_recommending_folder'));
-          const resp = await sendMessage<{ suggestedFolders: Array<{ id: string; path: string; confidence: number }> }>({
-            type: 'RECOMMEND_NEWTAB_FOLDER',
-            payload: { title: finalTitle, url: currentPage.url, description: currentPage.description },
-          });
-          if (resp?.suggestedFolders?.length > 0) targetFolderId = resp.suggestedFolders[0].id;
-        } catch { /* ignore */ }
-      }
-
-      setLoadingMessage(t('msg_saving_to_newtab'));
-      await sendMessage<{ id: string }>({
-        type: 'SAVE_TO_NEWTAB',
-        payload: { url: currentPage.url, title: finalTitle, parentBookmarkId: targetFolderId },
-      });
-      setLoadingMessage(null);
-      
-      // 显示保存成功信息，包含目标路径
-      const savedPath = newtabState.newtabFolders.find(f => f.id === targetFolderId)?.path || 'TMarks';
-      setSuccessMessage(t('msg_saved_to', savedPath));
-      chrome.notifications.create({
-        type: 'basic', iconUrl: '/icons/icon-128.png',
-        title: t('popup_title'), message: t('notification_saved', [finalTitle, savedPath]),
-      });
-      setTimeout(() => {
-        const currentMsg = useAppStore.getState().successMessage;
-        if (currentMsg?.startsWith(t('msg_saved_to', '').split('$')[0])) {
-          useAppStore.getState().setSuccessMessage(null);
-        }
-      }, 2000);
-    } catch (e) {
-      setLoadingMessage(null);
-      setError(e instanceof Error ? e.message : t('error_save_failed'));
-    }
-  };
+  const handleSelectBookmark = () => { popupState.setViewMode('bookmark'); popupState.setInitialized(false); };
+  const handleSelectTabCollection = () => popupState.setViewMode('tabCollection');
+  const handleSelectNewTab = () => { popupState.setViewMode('newtab'); popupState.setInitialized(false); };
+  const handleBackToSelector = () => popupState.setViewMode('selector');
 
   // Mode selector view
-  if (viewMode === 'selector') {
+  if (popupState.viewMode === 'selector') {
     return (
       <ModeSelector
         onSelectBookmark={handleSelectBookmark}
@@ -234,58 +152,14 @@ export function Popup() {
   }
 
   // Tab collection view
-  if (viewMode === 'tabCollection') {
+  if (popupState.viewMode === 'tabCollection') {
     if (!config) return <div>{t('loading')}</div>;
     return <TabCollectionView config={config.bookmarkSite} onBack={handleBackToSelector} />;
   }
 
   // Onboarding view (not configured)
-  if (initialized && !isConfigured) {
-    return (
-      <div className="relative h-[80vh] min-h-[580px] w-[380px] overflow-hidden rounded-2xl bg-[var(--tab-popup-onboarding-bg)] text-[var(--tab-popup-primary-text)] shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tab-popup-onboarding-radial-top),transparent_70%)] opacity-80" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_var(--tab-popup-onboarding-radial-bottom),transparent_65%)] opacity-80" />
-        <div className="absolute inset-0 bg-[color:var(--tab-popup-onboarding-overlay)] backdrop-blur-2xl" />
-        <div className="relative flex h-full flex-col">
-          <header className="px-6 pt-8 pb-6">
-            <div className="rounded-3xl border border-[color:var(--tab-popup-onboarding-card-border)] bg-[color:var(--tab-popup-onboarding-card-bg)] p-5 shadow-xl backdrop-blur-xl">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] shadow-lg">
-                  <svg className="h-6 w-6 text-[var(--tab-popup-primary-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                  </svg>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--tab-popup-onboarding-label)]">Onboarding</p>
-                  <h1 className="text-2xl font-semibold">{t('popup_welcome')}</h1>
-                  <p className="text-sm text-[color:var(--tab-popup-onboarding-desc)]">{t('popup_welcome_desc')}</p>
-                </div>
-              </div>
-            </div>
-          </header>
-          <main className="flex-1 space-y-5 overflow-y-auto px-6 pb-6">
-            <section className="rounded-3xl border border-[color:var(--tab-popup-onboarding-card-border)] bg-[color:var(--tab-popup-onboarding-subtle-bg)] p-5 backdrop-blur-xl">
-              <h2 className="text-sm font-semibold">{t('popup_required_info')}</h2>
-              <p className="mt-1 text-xs text-[color:var(--tab-popup-onboarding-label)]">{t('popup_required_info_desc')}</p>
-              <ol className="mt-4 space-y-3 text-xs">
-                {[t('popup_config_ai_key'), t('popup_config_site_url'), t('popup_config_site_key')].map((item, idx) => (
-                  <li key={idx} className="flex gap-3 rounded-2xl border border-[color:var(--tab-popup-onboarding-subtle-border)] bg-[color:var(--tab-popup-onboarding-subtle-bg)] p-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-xl bg-[color:var(--tab-popup-onboarding-tip-bg)] text-[11px] font-semibold">{idx + 1}</span>
-                    <div><p className="font-semibold">{item}</p></div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          </main>
-          <footer className="px-6 pb-6">
-            <button onClick={openOptions} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--tab-popup-primary-from)] via-[var(--tab-popup-primary-via)] to-[var(--tab-popup-primary-to)] px-6 py-3 text-sm font-semibold shadow-lg transition-all hover:shadow-xl active:scale-95">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              {t('popup_go_settings')}
-            </button>
-          </footer>
-        </div>
-      </div>
-    );
+  if (popupState.initialized && !isConfigured) {
+    return <OnboardingView onOpenOptions={openOptions} />;
   }
 
   // Main view (bookmark or newtab mode)
@@ -305,63 +179,56 @@ export function Popup() {
             <button onClick={handleBackToSelector} className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--tab-popup-text-muted)] transition-all hover:bg-[var(--tab-popup-action-neutral-bg)] active:scale-95" title={t('popup_back')}>
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
-            {viewMode === 'bookmark' && isAIEnabled && <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[var(--tab-popup-badge-blue-bg)] px-2 py-1 text-[10px] font-medium text-[var(--tab-popup-badge-blue-text)]">{t('popup_recommend_count', String(recommendedTags.length))}</span>}
-            {viewMode === 'bookmark' && !isAIEnabled && <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[var(--tab-popup-badge-amber-bg)] px-2 py-1 text-[10px] font-medium text-[var(--tab-popup-badge-amber-text)]">{t('popup_ai_off')}</span>}
-            {viewMode === 'bookmark' && (
+            {popupState.viewMode === 'bookmark' && isAIEnabled && <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[var(--tab-popup-badge-blue-bg)] px-2 py-1 text-[10px] font-medium text-[var(--tab-popup-badge-blue-text)]">{t('popup_recommend_count', String(recommendedTags.length))}</span>}
+            {popupState.viewMode === 'bookmark' && !isAIEnabled && <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[var(--tab-popup-badge-amber-bg)] px-2 py-1 text-[10px] font-medium text-[var(--tab-popup-badge-amber-text)]">{t('popup_ai_off')}</span>}
+            {popupState.viewMode === 'bookmark' && (
               <>
                 <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[var(--tab-popup-badge-indigo-bg)] px-2 py-1 text-[10px] font-medium text-[var(--tab-popup-badge-indigo-text)]">{t('popup_selected_count', String(selectedTags.length))}</span>
                 <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[var(--tab-popup-badge-purple-bg)] px-2 py-1 text-[10px] font-medium text-[var(--tab-popup-badge-purple-text)]">{t('popup_library_count', String(existingTags.length))}</span>
               </>
             )}
-            {viewMode === 'newtab' && (
-              <button
-                onClick={() => newtabState.handleRecommendNewtabFolder(currentPage)}
-                disabled={newtabState.isNewtabRecommending || !currentPage?.url || !newtabState.newtabFoldersLoaded}
-                className="rounded-lg border border-[var(--tab-popup-border-strong)] bg-[var(--tab-popup-surface)] px-2.5 py-1 text-[10px] font-medium text-[var(--tab-popup-text)] transition-all hover:bg-[var(--tab-popup-action-neutral-bg)] disabled:opacity-40"
-              >
-                {newtabState.isNewtabRecommending ? t('popup_ai_recommending') : t('popup_ai_recommend')}
-              </button>
-            )}
             <div className="ml-auto flex gap-1.5">
               <button onClick={() => window.close()} className="rounded-lg border border-[var(--tab-popup-border-strong)] bg-[var(--tab-popup-surface)] px-3 py-1.5 text-[11px] font-medium text-[var(--tab-popup-text)] transition-all hover:bg-[var(--tab-popup-action-neutral-bg)] active:scale-95">{t('btn_cancel')}</button>
-              {viewMode === 'bookmark' ? (
-                <button onClick={handleSave} disabled={isSaving || selectedTags.length === 0} className="rounded-lg bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-1.5 text-[11px] font-semibold text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">
+              {popupState.viewMode === 'bookmark' ? (
+                <button onClick={bookmarkHandlers.handleSave} disabled={isSaving || selectedTags.length === 0} className="rounded-lg bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-1.5 text-[11px] font-semibold text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">
                   {isSaving ? <span className="flex items-center gap-1"><svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>{t('popup_saving')}</span> : t('popup_save_bookmark')}
                 </button>
               ) : (
-                <button onClick={handleSaveToNewTab} disabled={isSaving || !currentPage?.url} className="rounded-lg bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-1.5 text-[11px] font-semibold text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">{t('popup_save_to_newtab')}</button>
+                <button onClick={newtabHandlers.handleSaveToNewTab} disabled={isSaving || !currentPage?.url} className="rounded-lg bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-1.5 text-[11px] font-semibold text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">{t('popup_save_to_newtab')}</button>
               )}
             </div>
           </div>
         </header>
 
         {/* NewTab 保存位置固定栏 */}
-        {viewMode === 'newtab' && (
+        {popupState.viewMode === 'newtab' && (
           <div className="fixed top-[46px] left-0 right-0 z-20 border-b border-[var(--tab-popup-save-target-border)] bg-[var(--tab-popup-save-target-bg)] px-4 py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <svg className="h-4 w-4 text-[var(--tab-popup-save-target-icon)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
-                <span className="text-sm font-semibold text-[var(--tab-popup-save-target-text)]">{currentSaveTargetPath}</span>
+                <span className="text-sm font-semibold text-[var(--tab-popup-save-target-text)]">{newtabHandlers.currentSaveTargetPath}</span>
               </div>
-              {hasUserSelectedFolder ? (
-                <span className="rounded-full bg-[var(--tab-popup-save-target-badge-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--tab-popup-save-target-badge-text)]">{t('popup_selected')}</span>
-              ) : (
-                <span className="rounded-full bg-[var(--tab-popup-save-target-badge-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--tab-popup-text-muted)]">{t('popup_default')}</span>
-              )}
+              <div className="flex items-center gap-1.5">
+                {newtabHandlers.hasUserSelectedFolder ? (
+                  <span className="rounded-full bg-[var(--tab-popup-save-target-badge-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--tab-popup-save-target-badge-text)]">{t('popup_selected')}</span>
+                ) : newtabState.newtabSuggestions.length > 0 ? (
+                  <span className="rounded-full bg-[var(--tab-message-info-icon)] px-2 py-0.5 text-[10px] font-medium text-white">AI</span>
+                ) : null}
+              </div>
             </div>
           </div>
         )}
 
         {/* Main Content */}
-        <main className={`relative flex-1 overflow-hidden bg-[var(--tab-popup-bg)] px-4 ${viewMode === 'newtab' ? 'flex flex-col pt-[90px] pb-4' : 'space-y-2.5 overflow-y-auto pt-[60px] pb-[70px]'}`}>
+        <main className={`relative flex-1 overflow-hidden bg-[var(--tab-popup-bg)] px-4 ${popupState.viewMode === 'newtab' ? 'flex flex-col pt-[90px] pb-4' : 'space-y-2.5 overflow-y-auto pt-[60px] pb-[70px]'}`}>
           {/* NewTab Mode */}
-          {viewMode === 'newtab' && (
+          {popupState.viewMode === 'newtab' && (
             <NewtabModeView
               currentPage={currentPage}
-              titleOverride={titleOverride}
-              setTitleOverride={setTitleOverride}
+              titleOverride={popupState.titleOverride}
+              setTitleOverride={popupState.setTitleOverride}
               newtabFoldersLoadError={newtabState.newtabFoldersLoadError}
               enterNewtabFolder={newtabState.enterNewtabFolder}
               loadNewtabFolders={newtabState.loadNewtabFolders}
@@ -369,150 +236,50 @@ export function Popup() {
               newtabFolders={newtabState.newtabFolders}
               currentNewtabFolderId={newtabState.currentNewtabFolderId}
               newtabRootId={newtabState.newtabRootId}
+              isAIEnabled={Boolean(config && config.preferences.enableNewtabAI && config.aiConfig.apiKeys[config.aiConfig.provider])}
+              isRecommending={newtabState.isNewtabRecommending}
             />
           )}
 
-          {/* Bookmark Mode - Loading */}
-          {viewMode === 'bookmark' && isRecommending && (
-            <section className="flex items-center gap-3 rounded-xl border border-[var(--tab-popup-border)] bg-[var(--tab-popup-section-gray-bg)] p-3.5 text-sm text-[var(--tab-popup-text)] shadow-lg">
-              <LoadingSpinner />
-              <p>{t('popup_ai_analyzing')}</p>
-            </section>
-          )}
-
-          {/* Bookmark Mode - AI Disabled */}
-          {viewMode === 'bookmark' && !isAIEnabled && !isRecommending && recommendedTags.length === 0 && (
-            <section className="rounded-xl border border-[var(--tab-popup-section-amber-border)] bg-gradient-to-br from-[var(--tab-popup-section-amber-from)] to-[var(--tab-popup-section-amber-to)] p-3.5 shadow-lg">
-              <div className="flex items-start gap-3">
-                <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--tab-popup-section-amber-icon)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="text-sm font-medium text-[var(--tab-popup-section-amber-title)]">{t('popup_ai_disabled_title')}</p>
-                  <p className="mt-1 text-xs text-[var(--tab-popup-section-amber-text)]">{t('popup_ai_disabled_desc')}</p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Bookmark Mode - Selected Tags */}
-          {viewMode === 'bookmark' && selectedTags.length > 0 && (
-            <section className="rounded-xl border border-[var(--tab-popup-section-blue-border)] bg-gradient-to-br from-[var(--tab-popup-section-blue-from)] to-[var(--tab-popup-section-blue-to)] p-3.5 shadow-lg">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-[var(--tab-popup-text)]">{t('popup_selected_tags')}</p>
-                  <span className="text-[10px] text-[var(--tab-popup-text-muted)]">{t('popup_click_to_remove')}</span>
-                </div>
-                <span className="rounded-full bg-[var(--tab-popup-section-blue-badge-bg)] px-2 py-0.5 text-xs font-medium text-[var(--tab-popup-section-blue-badge-text)]">{selectedTags.length}</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedTags.map((tag) => (
-                  <button key={tag} onClick={() => toggleTag(tag)} title={t('popup_click_to_remove')} className={getSelectedTagClass(tagTheme)}>
-                    <span className="max-w-[120px] truncate">{tag}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Bookmark Mode - Page Info & Actions */}
-          {currentPage && viewMode === 'bookmark' && (
-            <section className="rounded-xl border border-[var(--tab-popup-section-gray-border)] bg-[var(--tab-popup-section-gray-bg)] p-3.5 shadow-lg">
-              <div className="mb-3 flex items-center justify-center gap-2">
-                <button type="button" onClick={handleToggleThumbnail} disabled={!currentPage.thumbnail} className={`flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 ${includeThumbnail ? 'bg-[var(--tab-popup-action-amber-bg)] text-[var(--tab-popup-action-amber-text)] hover:bg-[var(--tab-popup-action-amber-bg-hover)]' : 'bg-[var(--tab-popup-action-neutral-bg)] text-[var(--tab-popup-action-neutral-text)] hover:bg-[var(--tab-popup-action-neutral-bg-hover)]'} ${!currentPage.thumbnail ? 'cursor-not-allowed opacity-40' : ''}`} title={includeThumbnail ? t('tooltip_include_thumbnail') : t('tooltip_no_thumbnail')}>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                </button>
-                <button type="button" onClick={() => setCreateSnapshot(!createSnapshot)} className={`flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 ${createSnapshot ? 'bg-[var(--tab-popup-action-purple-bg)] text-[var(--tab-popup-action-purple-text)] hover:bg-[var(--tab-popup-action-purple-bg-hover)]' : 'bg-[var(--tab-popup-action-neutral-bg)] text-[var(--tab-popup-action-neutral-text)] hover:bg-[var(--tab-popup-action-neutral-bg-hover)]'}`} title={createSnapshot ? t('tooltip_create_snapshot') : t('tooltip_no_snapshot')}>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
-                <button type="button" onClick={() => setShowTitleEdit(!showTitleEdit)} className={`flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 ${showTitleEdit ? 'bg-[var(--tab-popup-action-blue-bg)] text-[var(--tab-popup-action-blue-text)] hover:bg-[var(--tab-popup-action-blue-bg-hover)]' : 'bg-[var(--tab-popup-action-neutral-bg)] text-[var(--tab-popup-action-neutral-text)] hover:bg-[var(--tab-popup-action-neutral-bg-hover)]'}`} title={showTitleEdit ? t('tooltip_edit_title_collapse') : t('tooltip_edit_title_expand')}>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                </button>
-                <button type="button" onClick={() => setShowDescEdit(!showDescEdit)} className={`flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 ${showDescEdit ? 'bg-[var(--tab-popup-action-blue-bg)] text-[var(--tab-popup-action-blue-text)] hover:bg-[var(--tab-popup-action-blue-bg-hover)]' : 'bg-[var(--tab-popup-action-neutral-bg)] text-[var(--tab-popup-action-neutral-text)] hover:bg-[var(--tab-popup-action-neutral-bg-hover)]'}`} title={showDescEdit ? t('tooltip_edit_desc_collapse') : t('tooltip_edit_desc_expand')}>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" /></svg>
-                </button>
-              </div>
-              <div className="mb-2.5 space-y-2">
-                {showTitleEdit && (
-                  <div className="animate-in slide-in-from-top-2 fade-in flex gap-2 duration-200">
-                    <input type="text" value={titleOverride} onChange={(e) => setTitleOverride(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleApplyTitleOverride(); }} placeholder={t('placeholder_custom_title')} className="flex-1 rounded-xl border border-[var(--tab-popup-input-border)] bg-[var(--tab-popup-input-bg)] px-3 py-2 text-sm text-[var(--tab-popup-input-text)] placeholder:text-[var(--tab-popup-input-placeholder)] focus:border-[var(--tab-popup-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--tab-popup-input-focus-ring)]" autoFocus />
-                    <button onClick={handleApplyTitleOverride} disabled={!titleOverride.trim() || !currentPage} className="rounded-xl bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-2 text-sm font-medium text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">{t('popup_apply')}</button>
-                  </div>
-                )}
-                {showDescEdit && (
-                  <div className="animate-in slide-in-from-top-2 fade-in flex gap-2 duration-200">
-                    <textarea value={descriptionOverride} onChange={(e) => setDescriptionOverride(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) handleApplyDescriptionOverride(); }} placeholder={t('placeholder_custom_desc')} rows={2} className="flex-1 resize-none rounded-xl border border-[var(--tab-popup-input-border)] bg-[var(--tab-popup-input-bg)] px-3 py-2 text-sm text-[var(--tab-popup-input-text)] placeholder:text-[var(--tab-popup-input-placeholder)] focus:border-[var(--tab-popup-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--tab-popup-input-focus-ring)]" autoFocus />
-                    <button onClick={handleApplyDescriptionOverride} disabled={!currentPage} className="rounded-xl bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-2 text-sm font-medium text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">{t('popup_apply')}</button>
-                  </div>
-                )}
-              </div>
-              <PageInfoCard title={currentPage.title} url={currentPage.url} description={currentPage.description} thumbnail={includeThumbnail ? currentPage.thumbnail : undefined} thumbnails={includeThumbnail ? currentPage.thumbnails : undefined} favicon={currentPage.favicon} onThumbnailChange={(newThumbnail) => setCurrentPage({ ...currentPage, thumbnail: newThumbnail })} />
-            </section>
-          )}
-
-          {/* Bookmark Mode - AI Recommendations */}
-          {viewMode === 'bookmark' && recommendedTags.length > 0 && (
-            <section className="rounded-xl border border-[var(--tab-popup-section-purple-border)] bg-gradient-to-br from-[var(--tab-popup-section-purple-from)] to-[var(--tab-popup-section-purple-to)] p-3.5 shadow-lg">
-              <div className="mb-2.5 flex items-center justify-between">
-                <div>
-                  <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--tab-popup-text)]">{t('ai_recommend_title')}</h2>
-                  <p className="mt-1 text-xs text-[var(--tab-popup-text-muted)]">{t('ai_recommend_desc')}</p>
-                </div>
-                <span className="rounded-full bg-[var(--tab-popup-section-purple-badge-bg)] px-2 py-0.5 text-xs font-medium text-[var(--tab-popup-section-purple-badge-text)]">{recommendedTags.length}</span>
-              </div>
-              <TagList tags={recommendedTags} selectedTags={selectedTags} onToggle={toggleTag} theme={tagTheme} />
-            </section>
-          )}
-
-          {/* Bookmark Mode - Tag Library */}
-          {viewMode === 'bookmark' && (
-            <section className="rounded-xl border border-[var(--tab-popup-section-emerald-border)] bg-gradient-to-br from-[var(--tab-popup-section-emerald-from)] to-[var(--tab-popup-section-emerald-to)] p-3.5 shadow-lg">
-              <div className="mb-2.5 flex items-center justify-between">
-                <div>
-                  <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--tab-popup-text)]">
-                    <svg className="h-4 w-4 text-[var(--tab-popup-section-emerald-icon)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
-                    {t('tag_library')}
-                  </h2>
-                  <p className="mt-1 text-xs text-[var(--tab-popup-text-muted)]">{t('tag_library_desc')}</p>
-                </div>
-                <span className="rounded-full bg-[var(--tab-popup-section-emerald-badge-bg)] px-2 py-0.5 text-xs font-medium text-[var(--tab-popup-section-emerald-badge-text)]">{existingTags.length}</span>
-              </div>
-              <div className="scrollbar-thin scrollbar-thumb-[var(--tab-popup-border-strong)] scrollbar-track-transparent max-h-48 overflow-y-auto pr-1">
-                {existingTags.length === 0 ? (
-                  <div className="flex items-center justify-center py-6"><p className="text-xs text-[var(--tab-popup-text-muted)]">{isLoading ? t('loading') : t('no_tags')}</p></div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {existingTags.sort((a, b) => b.count - a.count).map((tag) => {
-                      const isSelected = selectedTags.includes(tag.name);
-                      return (
-                        <button key={tag.id} onClick={() => toggleTag(tag.name)} className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-200 active:scale-95 ${getExistingTagClass(tagTheme, isSelected)}`}>
-                          {tagTheme !== 'bw' && <span className="mr-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: tag.color || 'var(--tab-message-success-icon)' }} />}
-                          <span className="max-w-[110px] truncate">{tag.name}</span>
-                          {tag.count > 0 && <span className="ml-1 text-[10px] opacity-60">({tag.count})</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* Save Duration */}
-          {lastSaveDurationMs !== null && (
-            <section className="rounded-xl border border-[var(--tab-popup-section-gray-border)] bg-[var(--tab-popup-section-gray-bg)] p-2.5 text-xs text-[var(--tab-popup-text-muted)] shadow-sm">
-              {t('last_save_duration', (lastSaveDurationMs / 1000).toFixed(2))}
-            </section>
+          {/* Bookmark Mode */}
+          {popupState.viewMode === 'bookmark' && (
+            <BookmarkModeView
+              currentPage={currentPage}
+              recommendedTags={recommendedTags}
+              existingTags={existingTags}
+              selectedTags={selectedTags}
+              isRecommending={isRecommending}
+              isAIEnabled={isAIEnabled}
+              isLoading={isLoading}
+              includeThumbnail={includeThumbnail}
+              createSnapshot={createSnapshot}
+              showTitleEdit={popupState.showTitleEdit}
+              showDescEdit={popupState.showDescEdit}
+              titleOverride={popupState.titleOverride}
+              descriptionOverride={popupState.descriptionOverride}
+              tagTheme={tagTheme}
+              lastSaveDurationMs={lastSaveDurationMs}
+              onToggleTag={toggleTag}
+              onSetTitleOverride={popupState.setTitleOverride}
+              onSetDescriptionOverride={popupState.setDescriptionOverride}
+              onToggleThumbnail={bookmarkHandlers.handleToggleThumbnail}
+              onToggleSnapshot={bookmarkHandlers.handleToggleSnapshot}
+              onToggleTitleEdit={() => popupState.setShowTitleEdit(!popupState.showTitleEdit)}
+              onToggleDescEdit={() => popupState.setShowDescEdit(!popupState.showDescEdit)}
+              onApplyTitle={bookmarkHandlers.handleApplyTitleOverride}
+              onApplyDescription={bookmarkHandlers.handleApplyDescriptionOverride}
+              onThumbnailChange={bookmarkHandlers.handleThumbnailChange}
+            />
           )}
         </main>
 
         {/* Footer - Custom Tag Input (only for bookmark mode) */}
-        {viewMode === 'bookmark' && (
+        {popupState.viewMode === 'bookmark' && (
           <footer className="fixed bottom-0 left-0 right-0 z-20 rounded-t-2xl border-t border-[var(--tab-popup-footer-border)] bg-[var(--tab-popup-footer-bg)] px-3 pt-2 pb-2.5 shadow-sm">
             <div className="flex items-center gap-2">
               <svg className="h-4 w-4 flex-shrink-0 text-[var(--tab-popup-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              <input type="text" value={customTagInput} onChange={(e) => setCustomTagInput(e.target.value)} onKeyPress={handleKeyPress} placeholder={t('placeholder_add_tag')} className="flex-1 rounded-xl border border-[var(--tab-popup-input-border)] bg-[var(--tab-popup-input-bg)] px-3 py-1.5 text-sm text-[var(--tab-popup-input-text)] placeholder:text-[var(--tab-popup-input-placeholder)] focus:border-[var(--tab-popup-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--tab-popup-input-focus-ring)]" />
-              <button onClick={handleAddCustomTag} disabled={!customTagInput.trim()} className="rounded-xl bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-1.5 text-sm font-medium text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">{t('add_tag')}</button>
+              <input type="text" value={popupState.customTagInput} onChange={(e) => popupState.setCustomTagInput(e.target.value)} onKeyPress={(e) => bookmarkHandlers.handleKeyPress(e, popupState.customTagInput, popupState.setCustomTagInput)} placeholder={t('placeholder_add_tag')} className="flex-1 rounded-xl border border-[var(--tab-popup-input-border)] bg-[var(--tab-popup-input-bg)] px-3 py-1.5 text-sm text-[var(--tab-popup-input-text)] placeholder:text-[var(--tab-popup-input-placeholder)] focus:border-[var(--tab-popup-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--tab-popup-input-focus-ring)]" />
+              <button onClick={() => bookmarkHandlers.handleAddCustomTag(popupState.customTagInput, popupState.setCustomTagInput)} disabled={!popupState.customTagInput.trim()} className="rounded-xl bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-1.5 text-sm font-medium text-[var(--tab-popup-primary-text)] shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95">{t('add_tag')}</button>
             </div>
           </footer>
         )}

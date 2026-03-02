@@ -3,7 +3,7 @@
  */
 
 import { t } from '@/lib/i18n';
-import { useNewtabStore } from '../../../hooks/useNewtabStore';
+import { useNewtabStore } from '../../../hooks';
 import {
   SettingSection,
   ToggleItem,
@@ -37,7 +37,7 @@ export function AppearanceTab() {
         />
         <SelectItem
           label={t('settings_style')}
-          value={settings.shortcutStyle}
+          value={settings.shortcutStyle || 'icon'}
           options={[
             { value: 'icon', label: t('settings_style_icon') },
             { value: 'card', label: t('settings_style_card') },

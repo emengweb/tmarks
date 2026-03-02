@@ -7,8 +7,21 @@ import type {
 import { AppError } from '@/types';
 import { t } from '@/lib/i18n';
 import { StorageService } from '@/lib/utils/storage';
-import { createTMarksClient, type TMarksBookmark, type TMarksTag } from '@/lib/api/tmarks';
+import { createTMarksClient, type TMarksBookmark, type TMarksTag } from '@/lib/api';
+import { logger } from '@/lib/utils/logger';
 import { getTMarksUrls } from '@/lib/constants/urls';
+
+export interface ExistingBookmarkData {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  tags: Array<{ id: string; name: string; color: string | null }>;
+  has_snapshot?: boolean;
+  snapshot_count?: number;
+  created_at: string;
+  needsDialog?: boolean;
+}
 
 export class BookmarkAPIClient {
   private client: ReturnType<typeof createTMarksClient> | null = null;
@@ -18,8 +31,8 @@ export class BookmarkAPIClient {
     const configuredUrl = await StorageService.getBookmarkSiteApiUrl();
     const apiKey = await StorageService.getBookmarkSiteApiKey();
 
-    console.log('[BookmarkAPI] initialize - configuredUrl:', configuredUrl);
-    console.log('[BookmarkAPI] initialize - apiKey exists:', !!apiKey, 'length:', apiKey?.length || 0);
+    logger.log('[BookmarkAPI] initialize - configuredUrl:', configuredUrl);
+    logger.log('[BookmarkAPI] initialize - apiKey exists:', !!apiKey, 'length:', apiKey?.length || 0);
 
     if (!apiKey) {
       throw new AppError(
@@ -69,10 +82,13 @@ export class BookmarkAPIClient {
             chrome.tabs.sendMessage(t.id as number, {
               type: 'TMARKS_WEB_DATA_CHANGED',
               payload: { timestamp: Date.now() }
-            }).catch(() => {})
+            }).catch((error) => {
+              logger.error('[BookmarkAPI] Failed to notify tab:', t.id, error);
+            })
           )
       );
-    } catch {
+    } catch (error) {
+      logger.error('[BookmarkAPI] Failed to notify web app:', error);
       // ignore
     }
   }
@@ -102,23 +118,29 @@ export class BookmarkAPIClient {
       const response = await client.tags.getTags();
 
       // Convert TMarks API format to internal format
+      if (!response?.data?.tags || !Array.isArray(response.data.tags)) {
+        return [];
+      }
+      
       return response.data.tags.map((tag: TMarksTag) => ({
         name: tag.name,
         color: tag.color,
         count: tag.bookmark_count || 0,
         createdAt: new Date(tag.created_at).getTime()
       }));
-    } catch (error: any) {
-      if (error.code === 'MISSING_API_KEY') {
+    } catch (error) {
+      const isApiKeyError = error instanceof Error && error.message.includes('API Key');
+      if (isApiKeyError) {
         throw new AppError(
           'API_KEY_INVALID' as ErrorCode,
           'TMarks API key is required. Please configure your API key in the extension settings.',
           { originalError: error }
         );
       }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new AppError(
         'BOOKMARK_SITE_ERROR' as ErrorCode,
-        `Failed to fetch tags: ${error.message}`,
+        `Failed to fetch tags: ${errorMessage}`,
         { originalError: error }
       );
     }
@@ -139,7 +161,7 @@ export class BookmarkAPIClient {
         page_cursor: page > 1 ? `page_${page}` : undefined
       });
 
-      if (!response.data.bookmarks.length) {
+      if (!response?.data?.bookmarks || !Array.isArray(response.data.bookmarks) || !response.data.bookmarks.length) {
         return { bookmarks: [], hasMore: false };
       }
 
@@ -148,19 +170,20 @@ export class BookmarkAPIClient {
         url: bm.url,
         title: bm.title,
         description: bm.description || '',
-        tags: bm.tags.map((tag: TMarksTag) => tag.name), // 只保留标签名称
+        tags: Array.isArray(bm.tags) ? bm.tags.map((tag: TMarksTag) => tag.name) : [],
         createdAt: new Date(bm.created_at).getTime(),
         remoteId: bm.id
       }));
 
       return {
         bookmarks,
-        hasMore: response.data.meta.has_more
+        hasMore: response.data.meta?.has_more ?? false
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new AppError(
         'BOOKMARK_SITE_ERROR' as ErrorCode,
-        `Failed to fetch bookmarks: ${error.message}`,
+        `Failed to fetch bookmarks: ${errorMessage}`,
         { originalError: error }
       );
     }
@@ -169,7 +192,11 @@ export class BookmarkAPIClient {
   /**
    * Add a new bookmark
    */
-  async addBookmark(bookmark: BookmarkInput): Promise<{ id: string; isExisting?: boolean; existingBookmark?: any }> {
+  async addBookmark(bookmark: BookmarkInput): Promise<{ 
+    id: string; 
+    isExisting?: boolean; 
+    existingBookmark?: ExistingBookmarkData;
+  }> {
     const client = await this.ensureClient();
 
     // 构建请求数据
@@ -179,20 +206,21 @@ export class BookmarkAPIClient {
       description: bookmark.description,
       cover_image: bookmark.thumbnail,
       favicon: bookmark.favicon,
-      tags: bookmark.tags
+      tags: bookmark.tags,
+      is_public: bookmark.is_public ?? true  // 默认公开，与前端保持一致
     };
 
     // 打印请求数据用于调试
-    console.log('[BookmarkAPI] addBookmark 请求数据:', JSON.stringify(requestData, null, 2));
+    logger.log('[BookmarkAPI] addBookmark 请求数据:', JSON.stringify(requestData, null, 2));
 
     try {
       // 直接传标签名称，让后端自动创建或链接标签
       const response = await client.bookmarks.createBookmark(requestData);
 
-      console.log('[BookmarkAPI] addBookmark 响应:', JSON.stringify(response, null, 2));
+      logger.log('[BookmarkAPI] addBookmark 响应:', JSON.stringify(response, null, 2));
 
       if (!response.data.bookmark) {
-        console.error('[BookmarkAPI] addBookmark 失败: 响应中没有 bookmark 数据', response);
+        logger.error('[BookmarkAPI] addBookmark 失败: 响应中没有 bookmark 数据', response);
         throw new AppError(
           'BOOKMARK_SITE_ERROR' as ErrorCode,
           'Failed to add bookmark: No data returned'
@@ -202,7 +230,7 @@ export class BookmarkAPIClient {
       // Check if this is an existing bookmark
       const isExisting = response.meta?.code === 'BOOKMARK_EXISTS';
       if (isExisting) {
-        console.log('[BookmarkAPI] 书签已存在:', response.data.bookmark.id);
+        logger.log('[BookmarkAPI] 书签已存在:', response.data.bookmark.id);
         await this.notifyWebAppDataChanged();
         // Return the full bookmark data for the dialog
         return { 
@@ -211,7 +239,7 @@ export class BookmarkAPIClient {
           existingBookmark: response.data.bookmark
         };
       } else {
-        console.log('[BookmarkAPI] 书签创建成功:', response.data.bookmark.id);
+        logger.log('[BookmarkAPI] 书签创建成功:', response.data.bookmark.id);
         await this.notifyWebAppDataChanged();
         return { 
           id: response.data.bookmark.id,
@@ -220,7 +248,7 @@ export class BookmarkAPIClient {
       }
     } catch (error: any) {
       // 详细记录错误信息
-      console.error('[BookmarkAPI] addBookmark 错误:', {
+      logger.error('[BookmarkAPI] addBookmark 错误:', {
         message: error.message,
         code: error.code,
         status: error.status,
@@ -255,8 +283,12 @@ export class BookmarkAPIClient {
       );
       
       // 附加原始错误代码，便于上层判断
-      (appError as any).code = errorCode;
-      (appError as any).status = errorStatus;
+      interface ExtendedError {
+        code?: string;
+        status?: number;
+      }
+      (appError as unknown as ExtendedError).code = errorCode;
+      (appError as unknown as ExtendedError).status = errorStatus;
       
       throw appError;
     }

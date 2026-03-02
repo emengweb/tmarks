@@ -4,6 +4,7 @@
 
 import { t } from '@/lib/i18n';
 import { toast } from '../components/ui/Toast';
+import { logger } from '@/lib/utils/logger';
 
 // 错误类型
 export type ErrorType = 'network' | 'storage' | 'sync' | 'bookmark' | 'unknown';
@@ -55,7 +56,7 @@ export function handleError(
   }
   
   // 控制台输出
-  console.error(`[${type.toUpperCase()}]`, message, error);
+  logger.error(`[${type.toUpperCase()}]`, message, error);
   
   // 显示 Toast
   if (showToast) {

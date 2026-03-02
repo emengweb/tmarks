@@ -10,7 +10,10 @@ import { bookmarkService } from '@/lib/services/bookmark-service';
 import { bookmarkAPI } from '@/lib/services/bookmark-api';
 import { syncPendingTabGroups } from '@/lib/services/tab-collection';
 import { StorageService } from '@/lib/utils/storage';
-import type { Message, MessageResponse } from '@/types';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
+import type { Message, MessageResponse, PageInfo } from '@/types';
+import type { BookmarkInput } from '@/types/bookmark';
+import { logger } from '@/lib/utils/logger';
 
 import {
   ensureNewtabWorkspaceFolders,
@@ -22,17 +25,24 @@ import {
   handleSaveToNewtab,
   handleImportAllBookmarksToNewtab,
   handleGetNewtabFolders,
+  handleImportUrlsToNewtab,
 } from './handlers/newtab-folders';
 import { handleRecommendNewtabFolder } from './handlers/ai-recommend';
 
 // 初始化 i18n（Service Worker 启动时）
-initI18n().catch(() => {});
+initI18n().catch((error) => {
+  logger.error('[Background] Failed to initialize i18n:', error);
+});
 
 // 确保 Service Worker 启动时就检查一次
-ensureNewtabWorkspaceFolders().catch(() => {});
+ensureNewtabWorkspaceFolders().catch((error) => {
+  logger.error('[Background] Failed to ensure newtab workspace folders:', error);
+});
 
 // Preload AI context
-tagRecommender.preloadContext().catch(() => {});
+tagRecommender.preloadContext().catch((error) => {
+  logger.error('[Background] Failed to preload AI context:', error);
+});
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -41,19 +51,27 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   } else if (details.reason === 'update') {
     // Extension updated
   }
-  ensureNewtabWorkspaceFolders().catch(() => {});
+  ensureNewtabWorkspaceFolders().catch((error) => {
+    logger.error('[Background] Failed to ensure newtab workspace folders on install:', error);
+  });
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  ensureNewtabWorkspaceFolders().catch(() => {});
+  ensureNewtabWorkspaceFolders().catch((error) => {
+    logger.error('[Background] Failed to ensure newtab workspace folders on startup:', error);
+  });
 });
 
 chrome.bookmarks.onRemoved.addListener((id) => {
-  handleBookmarkNodeRemoved(id).catch(() => {});
+  handleBookmarkNodeRemoved(id).catch((error) => {
+    logger.error('[Background] Failed to handle bookmark removed:', id, error);
+  });
 });
 
 chrome.bookmarks.onMoved.addListener((id) => {
-  handleBookmarkNodeMoved(id).catch(() => {});
+  handleBookmarkNodeMoved(id).catch((error) => {
+    logger.error('[Background] Failed to handle bookmark moved:', id, error);
+  });
 });
 
 // Auto-sync cache periodically
@@ -74,8 +92,8 @@ async function runAutoSync() {
       return;
     }
     await cacheManager.autoSync(config.preferences.syncInterval);
-  } catch {
-    // Silently fail
+  } catch (error) {
+    logger.error('[Background] Auto-sync failed:', error);
   }
 }
 
@@ -90,10 +108,14 @@ async function startAutoSync() {
   scheduleNext();
 }
 
-startAutoSync().catch(() => {});
+startAutoSync().catch((error) => {
+  logger.error('[Background] Failed to start auto-sync:', error);
+});
 
 // Sync pending bookmarks on startup
-bookmarkService.syncPendingBookmarks().catch(() => {});
+bookmarkService.syncPendingBookmarks().catch((error) => {
+  logger.error('[Background] Failed to sync pending bookmarks:', error);
+});
 
 // Sync pending tab groups on startup
 (async () => {
@@ -102,25 +124,27 @@ bookmarkService.syncPendingBookmarks().catch(() => {});
     if (config.bookmarkSite.apiKey) {
       await syncPendingTabGroups(config.bookmarkSite);
     }
-  } catch {
-    // Silently fail
+  } catch (error) {
+    logger.error('[Background] Failed to sync pending tab groups:', error);
   }
 })();
 
 // 定时刷新置顶书签
 async function refreshPinnedBookmarksCache() {
   try {
-    console.log('[Background] 开始刷新置顶书签缓存');
+    logger.log('[Background] 开始刷新置顶书签缓存');
     await chrome.storage.local.remove('tmarks_pinned_bookmarks_cache');
     await chrome.runtime
       .sendMessage({
         type: 'REFRESH_PINNED_BOOKMARKS',
         payload: { timestamp: Date.now(), source: 'scheduled' },
       })
-      .catch(() => {});
-    console.log('[Background] 置顶书签缓存刷新完成');
+      .catch((error) => {
+        logger.error('[Background] Failed to send refresh message:', error);
+      });
+    logger.log('[Background] 置顶书签缓存刷新完成');
   } catch (error) {
-    console.error('[Background] 刷新置顶书签缓存失败:', error);
+    logger.error('[Background] 刷新置顶书签缓存失败:', error);
   }
 }
 
@@ -142,30 +166,39 @@ async function startPinnedBookmarksAutoRefresh() {
   const scheduleNext = async () => {
     try {
       const result = await chrome.storage.local.get('newtab');
-      const newtabData = result.newtab as any;
+      interface NewtabData {
+        settings?: {
+          autoRefreshPinnedBookmarks?: boolean;
+          pinnedBookmarksRefreshTime?: 'morning' | 'evening';
+        };
+      }
+      const newtabData = result.newtab as NewtabData | undefined;
       if (!newtabData?.settings?.autoRefreshPinnedBookmarks) {
         setTimeout(scheduleNext, 60 * 60 * 1000);
         return;
       }
       const refreshTime = newtabData.settings.pinnedBookmarksRefreshTime || 'morning';
       const delay = getMsUntilNextRefresh(refreshTime);
-      console.log(
+      logger.log(
         `[Background] 下次置顶书签刷新时间: ${refreshTime === 'morning' ? '早上 8:00' : '晚上 22:00'}, 距离: ${Math.round(delay / 1000 / 60)} 分钟`
       );
       setTimeout(async () => {
         await refreshPinnedBookmarksCache();
         scheduleNext();
       }, delay);
-    } catch {
+    } catch (error) {
+      logger.error('[Background] Failed to schedule pinned bookmarks refresh:', error);
       setTimeout(scheduleNext, 60 * 60 * 1000);
     }
   };
   scheduleNext();
 }
 
-startPinnedBookmarksAutoRefresh().catch(() => {});
+startPinnedBookmarksAutoRefresh().catch((error) => {
+  logger.error('[Background] Failed to start pinned bookmarks auto-refresh:', error);
+});
 
-console.log('[BG] init', {
+logger.log('[BG] init', {
   runtimeId: chrome.runtime.id,
   loadedAt: new Date().toISOString(),
 });
@@ -178,11 +211,11 @@ chrome.runtime.onMessage.addListener(
     sendResponse: (response: MessageResponse) => void
   ) => {
     try {
-      console.log('[BG] onMessage', {
+      logger.log('[BG] onMessage', {
         runtimeId: chrome.runtime.id,
         senderId: sender?.id,
         senderUrl: sender?.url,
-        rawType: (message as any)?.type,
+        rawType: (message as Message)?.type,
       });
     } catch {
       // ignore
@@ -208,7 +241,7 @@ async function handleMessage(
   message: Message,
   sender: chrome.runtime.MessageSender
 ): Promise<MessageResponse> {
-  const type = String((message as any)?.type ?? '')
+  const type = String((message as Message)?.type ?? '')
     .trim()
     .toUpperCase();
 
@@ -217,13 +250,13 @@ async function handleMessage(
       return handleExtractPageInfo(message);
 
     case 'RECOMMEND_TAGS': {
-      const pageInfo = message.payload;
+      const pageInfo = message.payload as PageInfo;
       const result = await tagRecommender.recommendTags(pageInfo);
       return { success: true, data: result };
     }
 
     case 'SAVE_BOOKMARK': {
-      const bookmark = message.payload;
+      const bookmark = message.payload as BookmarkInput;
       const result = await bookmarkService.saveBookmark(bookmark);
       return { success: true, data: result };
     }
@@ -234,6 +267,9 @@ async function handleMessage(
 
     case 'IMPORT_ALL_BOOKMARKS_TO_NEWTAB':
       return handleImportAllBookmarksToNewtab();
+
+    case 'IMPORT_URLS_TO_NEWTAB':
+      return handleImportUrlsToNewtab(message);
 
     case 'GET_NEWTAB_FOLDER':
     case 'GET_NEWTAB_FOLDERS':
@@ -248,19 +284,24 @@ async function handleMessage(
     }
 
     case 'GET_EXISTING_TAGS': {
-      const tags = await bookmarkAPI.getTags();
-      return { success: true, data: tags };
+      try {
+        const tags = await bookmarkAPI.getTags();
+        return { success: true, data: tags };
+      } catch (error) {
+        console.error('Failed to get existing tags:', error);
+        return { success: true, data: [] };
+      }
     }
 
     case 'UPDATE_BOOKMARK_TAGS': {
-      const { bookmarkId, tags } = message.payload;
-      await bookmarkAPI.updateBookmarkTags(bookmarkId, tags);
+      const payload = message.payload as { bookmarkId: string; tags: string[] };
+      await bookmarkAPI.updateBookmarkTags(payload.bookmarkId, payload.tags);
       return { success: true, data: { message: 'Tags updated successfully' } };
     }
 
     case 'UPDATE_BOOKMARK_DESCRIPTION': {
-      const { bookmarkId, description } = message.payload;
-      await bookmarkAPI.updateBookmarkDescription(bookmarkId, description);
+      const payload = message.payload as { bookmarkId: string; description: string };
+      await bookmarkAPI.updateBookmarkDescription(payload.bookmarkId, payload.description);
       return { success: true, data: { message: 'Description updated successfully' } };
     }
 
@@ -275,14 +316,16 @@ async function handleMessage(
               type: 'REFRESH_PINNED_BOOKMARKS',
               payload: message.payload,
             })
-            .catch(() => {});
+            .catch((error) => {
+              logger.error('[Background] Failed to send refresh message to tab:', tab.id, error);
+            });
         }
       }
       return { success: true, data: { message: 'Pinned bookmarks refresh triggered' } };
     }
 
     case 'CREATE_SNAPSHOT': {
-      const { bookmarkId, title, url } = message.payload;
+      const payload = message.payload as { bookmarkId: string; title: string; url: string };
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || !tab.id) {
         throw new Error('No active tab found');
@@ -302,26 +345,40 @@ async function handleMessage(
       });
 
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Capture timeout')), 35000);
+        setTimeout(() => reject(new Error('Capture timeout')), TIMEOUTS.AI_RECOMMEND);
       });
 
-      const response = (await Promise.race([capturePromise, timeoutPromise])) as any;
+      interface CaptureResponse {
+        success: boolean;
+        error?: string;
+        data?: {
+          html: string;
+          images: Array<{
+            hash: string;
+            data: string;
+            type: string;
+            size: number;
+          }>;
+        };
+      }
+
+      const response = (await Promise.race([capturePromise, timeoutPromise])) as CaptureResponse;
 
       if (!response.success) {
         throw new Error(response.error || 'Capture failed');
       }
 
-      const captureResult = response.data as { html: string; images: any[] };
-      const images = captureResult.images.map((img: any) => ({
+      const captureResult = response.data!;
+      const images = captureResult.images.map((img) => ({
         hash: img.hash,
         data: img.data,
         type: img.type,
       }));
 
-      await bookmarkAPI.createSnapshotV2(bookmarkId, {
+      await bookmarkAPI.createSnapshotV2(payload.bookmarkId, {
         html_content: captureResult.html,
-        title,
-        url,
+        title: payload.title,
+        url: payload.url,
         images,
       });
 

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, X, AlertCircle, Info } from 'lucide-react';
 import { Z_INDEX } from '../../constants/z-index';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -33,7 +34,7 @@ const COLORS: Record<ToastType, string> = {
 export function Toast({
   message,
   type = 'info',
-  duration = 3000,
+  duration = TIMEOUTS.MEDIUM,
   onClose,
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(false);
@@ -42,7 +43,7 @@ export function Toast({
     requestAnimationFrame(() => setIsVisible(true));
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onClose, 200);
+      setTimeout(onClose, TIMEOUTS.SHORT);
     }, duration);
     return () => clearTimeout(timer);
   }, [duration, onClose]);
@@ -81,16 +82,16 @@ function notifyListeners() {
 }
 
 export const toast = {
-  show: (message: string, type: ToastType = 'info', duration = 3000) => {
+  show: (message: string, type: ToastType = 'info', duration = TIMEOUTS.MEDIUM) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     toasts.push({ id, message, type, duration });
     notifyListeners();
     return id;
   },
-  success: (message: string, duration?: number) => toast.show(message, 'success', duration),
-  error: (message: string, duration?: number) => toast.show(message, 'error', duration),
-  warning: (message: string, duration?: number) => toast.show(message, 'warning', duration),
-  info: (message: string, duration?: number) => toast.show(message, 'info', duration),
+  success: (message: string, duration = TIMEOUTS.MEDIUM) => toast.show(message, 'success', duration),
+  error: (message: string, duration = TIMEOUTS.MEDIUM) => toast.show(message, 'error', duration),
+  warning: (message: string, duration = TIMEOUTS.MEDIUM) => toast.show(message, 'warning', duration),
+  info: (message: string, duration = TIMEOUTS.MEDIUM) => toast.show(message, 'info', duration),
   remove: (id: string) => {
     toasts = toasts.filter((t) => t.id !== id);
     notifyListeners();

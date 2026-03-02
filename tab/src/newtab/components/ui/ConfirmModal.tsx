@@ -8,6 +8,7 @@ import { t } from '@/lib/i18n';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useScrollLock } from '@/lib/hooks/useScrollLock';
 import { Z_INDEX } from '../../constants/z-index';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -59,12 +60,12 @@ export function ConfirmModal({
 
   const handleConfirm = () => {
     setIsVisible(false);
-    setTimeout(onConfirm, 150);
+    setTimeout(onConfirm, TIMEOUTS.ANIMATION);
   };
 
   const handleCancel = () => {
     setIsVisible(false);
-    setTimeout(onCancel, 150);
+    setTimeout(onCancel, TIMEOUTS.ANIMATION);
   };
 
   return createPortal(

@@ -81,7 +81,7 @@ export interface TMarksExportData {
   }
 }
 
-// ============ 导入格式 ============
+// ============ 导入格式（用于浏览器扩展）============
 
 export type ImportFormat = 'html' | 'json' | 'tmarks'
 

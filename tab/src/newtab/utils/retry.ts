@@ -11,10 +11,12 @@ export interface RetryOptions {
   onRetry?: (error: unknown, attempt: number, delay: number) => void;
 }
 
+import { DURATIONS } from '@/lib/constants/durations';
+
 const DEFAULT_OPTIONS: Required<Omit<RetryOptions, 'shouldRetry' | 'onRetry'>> = {
   maxRetries: 3,
-  initialDelay: 1000,
-  maxDelay: 30000,
+  initialDelay: DURATIONS.ONE_SECOND,
+  maxDelay: DURATIONS.THIRTY_SECONDS,
   backoffFactor: 2,
 };
 

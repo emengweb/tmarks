@@ -9,10 +9,13 @@ const extractor = new PageContentExtractor();
 
 export function setupMessageHandler() {
   // 防止重复注入
-  if ((window as any).__AITMARKS_CONTENT_SCRIPT_LOADED__) {
+  interface WindowWithFlag extends Window {
+    __AITMARKS_CONTENT_SCRIPT_LOADED__?: boolean;
+  }
+  if ((window as WindowWithFlag).__AITMARKS_CONTENT_SCRIPT_LOADED__) {
     return;
   }
-  (window as any).__AITMARKS_CONTENT_SCRIPT_LOADED__ = true;
+  (window as WindowWithFlag).__AITMARKS_CONTENT_SCRIPT_LOADED__ = true;
 
   chrome.runtime.onMessage.addListener(
     (
@@ -97,7 +100,8 @@ async function handleCapturePage(
 ) {
   try {
     const { capturePage } = await import('../singlefile-capture');
-    const html = await capturePage(message.options || {});
+    const options = (message.options || {}) as Record<string, unknown>;
+    const html = await capturePage(options);
     const size = new Blob([html]).size;
 
     sendResponse({ success: true, html, size });
@@ -115,7 +119,8 @@ async function handleCapturePageV2(
 ) {
   try {
     const { capturePageV2 } = await import('../singlefile-capture-v2');
-    const result = await capturePageV2(message.options || {});
+    const options = (message.options || {}) as Record<string, unknown>;
+    const result = await capturePageV2(options);
 
     const images = await Promise.all(
       result.images.map(async (img) => {

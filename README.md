@@ -35,7 +35,6 @@ TMarks 是一个现代化的智能书签管理系统，结合 AI 技术自动生
 - **前端**: React 18/19 + TypeScript + Vite + TailwindCSS 4
 - **后端**: Cloudflare Workers + Pages Functions
 - **数据库**: Cloudflare D1 (SQLite)
-- **缓存**: Cloudflare KV
 - **快照存储**: Cloudflare R2（可选，用于存储网页快照 HTML 与图片，支持全局 7GB 配额限制）
 - **AI集成**: 支持 OpenAI、Anthropic、DeepSeek、智谱等 8+ 提供商
 

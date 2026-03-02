@@ -5,7 +5,7 @@
 
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BookOpen, Layers, Database, Download } from 'lucide-react'
+import { BookOpen, Layers, Download } from 'lucide-react'
 import { Z_INDEX } from '@/lib/constants/z-index'
 
 interface NavItem {
@@ -35,12 +35,6 @@ export function MobileBottomNav() {
       path: '/tab'
     },
     {
-      id: 'data',
-      labelKey: 'nav.data',
-      icon: Database,
-      path: '/import-export'
-    },
-    {
       id: 'extension',
       labelKey: 'nav.extension',
       icon: Download,
@@ -57,7 +51,7 @@ export function MobileBottomNav() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border sm:hidden" style={{ zIndex: Z_INDEX.MOBILE_BOTTOM_NAV }}>
-      <div className="grid grid-cols-4 h-16">
+      <div className="grid grid-cols-3 h-16">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.path)

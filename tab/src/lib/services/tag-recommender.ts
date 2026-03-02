@@ -59,6 +59,10 @@ export class TagRecommender {
       const existingTagNames = context.existingTags;
       const existingTagSet = new Set(existingTagNames.map(tag => tag.trim().toLowerCase()));
 
+      if (!aiResponse?.suggestedTags || !Array.isArray(aiResponse.suggestedTags)) {
+        throw new Error('Invalid AI response: suggestedTags is not an array');
+      }
+
       const verifiedTags = aiResponse.suggestedTags.map((tag: TagSuggestion) => {
         const normalizedTagName = tag.name.trim().toLowerCase();
         const isExisting = existingTagSet.has(normalizedTagName);

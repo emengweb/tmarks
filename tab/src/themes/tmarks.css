@@ -247,6 +247,18 @@
   --tab-tag-unselected-text: var(--tab-text);
   --tab-tag-border: var(--tab-border);
   --tab-tag-new-indicator: var(--tab-message-warning-icon);
+
+  /* Options 补充 - tmarks 主题 */
+  --tab-options-tag-bg: oklch(0.97 0.005 95);
+  --tab-options-tag-border: oklch(0.88 0.007 97);
+  --tab-options-progress-bar-bg: oklch(0.92 0.01 95);
+  --tab-options-progress-bar-fill: oklch(0.55 0.12 50);
+  --tab-options-danger-hover-bg: oklch(0.6 0.18 25 / 0.1);
+  --tab-options-danger-hover-border: oklch(0.6 0.18 25 / 0.5);
+  --tab-options-danger-hover-text: oklch(0.5 0.18 25);
+  --tab-options-modal-close-text: oklch(1 0 0 / 0.7);
+  --tab-options-modal-close-hover-border: oklch(1 0 0 / 0.2);
+  --tab-options-modal-close-hover-text: oklch(1 0 0);
 }
 
 /* Dark mode */
@@ -422,4 +434,16 @@
   --tab-tag-unselected-text: oklch(0.9 0.01 95);
   --tab-tag-border: oklch(1 0 0 / 0.15);
   --tab-tag-new-indicator: oklch(0.85 0.1 55);
+
+  /* Options 补充 - 暗色 */
+  --tab-options-tag-bg: oklch(0.2 0.01 55);
+  --tab-options-tag-border: oklch(0.3 0.01 55);
+  --tab-options-progress-bar-bg: oklch(0.25 0.01 55);
+  --tab-options-progress-bar-fill: oklch(0.65 0.1 55);
+  --tab-options-danger-hover-bg: oklch(0.6 0.18 25 / 0.1);
+  --tab-options-danger-hover-border: oklch(0.6 0.18 25 / 0.5);
+  --tab-options-danger-hover-text: oklch(0.88 0.08 25);
+  --tab-options-modal-close-text: oklch(1 0 0 / 0.7);
+  --tab-options-modal-close-hover-border: oklch(1 0 0 / 0.2);
+  --tab-options-modal-close-hover-text: oklch(1 0 0);
 }

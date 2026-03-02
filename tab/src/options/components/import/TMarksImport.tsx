@@ -1,21 +1,13 @@
 /**
- * TMarks 批量导入组件
+ * TMarks 批量导入组件 - 重构版
  */
 
-import { useState, useEffect } from 'react'
-import { ArrowRight } from 'lucide-react'
-import { parseBookmarksFile } from '@/lib/import/parser'
-import { normalizeBookmarksWithStream, type NormalizeResult, type NormalizeProgress } from '@/lib/import/normalizer'
-import type { 
-  ParsedBookmark, 
-  ImportFormat, 
-  ImportOptions, 
-  ImportResult
-} from '@/types/import'
-
-// 导入子组件
 import { UploadStep } from './UploadStep'
 import { ImportStep as ImportStepComponent } from './ImportStep'
+import { AIOrganizeStep } from './AIOrganizeStep'
+import { EditableBookmarkTable, type EditableBookmark } from './EditableBookmarkTable'
+import { ImportStepIndicator } from './ImportStepIndicator'
+import { useBookmarkImport, useTMarksData, useTMarksImport } from './hooks'
 
 interface TMarksImportProps {
   formData: any
@@ -24,90 +16,69 @@ interface TMarksImportProps {
   onBack: () => void
 }
 
-type ImportStep = 'upload' | 'import'
-
 export function TMarksImport({ formData, setSuccessMessage, setError }: TMarksImportProps) {
-  const [currentStep, setCurrentStep] = useState<ImportStep>('upload')
-  const [selectedFormat, setSelectedFormat] = useState<ImportFormat>('html')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [parsedBookmarks, setParsedBookmarks] = useState<ParsedBookmark[]>([])
-  const [normalizeResult, setNormalizeResult] = useState<NormalizeResult | null>(null)
-  const [normalizeProgress, setNormalizeProgress] = useState<NormalizeProgress | null>(null)
-  
-  const [isImporting, setIsImporting] = useState(false)
-  const [isValidating, setIsValidating] = useState(false)
-  const [importProgress, setImportProgress] = useState<{ current: number; total: number; status: string } | null>(null)
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
-
-  const [options, setOptions] = useState<ImportOptions>({
-    includeThumbnail: formData.defaultIncludeThumbnail ?? false,
-    createSnapshot: formData.defaultCreateSnapshot ?? false,
-    generateTags: false
+  const importState = useBookmarkImport({
+    mode: 'tmarks',
+    storageKey: 'tmarks_import_progress',
+    defaultOptions: {
+      includeThumbnail: formData.defaultIncludeThumbnail ?? false,
+      createSnapshot: formData.defaultCreateSnapshot ?? false
+    }
   })
 
-  useEffect(() => {
-    async function parseFile() {
-      if (selectedFile) {
-        setIsValidating(true)
-        setNormalizeProgress(null)
-        try {
-          const content = await selectedFile.text()
-          const bookmarks = parseBookmarksFile(content, selectedFormat)
-          setParsedBookmarks(bookmarks)
-          
-          if (bookmarks.length === 0) {
-            setError('未能解析到有效的书签数据')
-            setNormalizeResult(null)
-          } else {
-            const result = await normalizeBookmarksWithStream(bookmarks, setNormalizeProgress)
-            setNormalizeResult(result)
-            
-            if (result.validUrls.length === 0) {
-              setError('未找到有效的 URL')
-            } else {
-              setSuccessMessage(`已提取 ${result.validUrls.length} 个有效 URL`)
-            }
-          }
-        } catch (err) {
-          console.error('Failed to parse bookmarks:', err)
-          setError('文件解析失败，请检查文件格式')
-          setParsedBookmarks([])
-          setNormalizeResult(null)
-        } finally {
-          setIsValidating(false)
-          setNormalizeProgress(null)
-        }
-      } else {
-        setParsedBookmarks([])
-        setNormalizeResult(null)
-        setNormalizeProgress(null)
-      }
-    }
-
-    parseFile()
-  }, [selectedFile, selectedFormat])
-
-  const handleFileSelect = (file: File) => {
-    setSelectedFile(file)
-    setImportResult(null)
-  }
-
-  const handleReset = () => {
-    setSelectedFile(null)
-    setParsedBookmarks([])
-    setNormalizeResult(null)
-    setNormalizeProgress(null)
-    setImportResult(null)
-    setCurrentStep('upload')
-  }
+  const { existingTags } = useTMarksData()
+  const tmarksImport = useTMarksImport(formData)
 
   const handleStartImport = () => {
-    setCurrentStep('import')
+    const uploadData = {
+      format: importState.selectedFormat,
+      normalizeResult: importState.normalizeResult || undefined,
+      options: importState.importOptions
+    }
+    
+    importState.completeCurrentStep(uploadData)
+    importState.updateStepData('upload', uploadData)
+
+    if (importState.enableAiOrganize) {
+      importState.goToNextStep()
+    } else {
+      if (importState.normalizeResult) {
+        const basicBookmarks: EditableBookmark[] = importState.normalizeResult.validUrls.map(url => ({
+          url,
+          title: url,
+          description: '',
+          tags: [],
+          isSelected: true,
+          isSkipped: false
+        }))
+        importState.setBookmarks(basicBookmarks)
+        importState.updateStepData('edit', { bookmarks: basicBookmarks })
+        importState.goToNextStep()
+      }
+    }
+  }
+
+  const handleAIOrganizeComplete = (organizedBookmarks: EditableBookmark[]) => {
+    importState.setBookmarks(organizedBookmarks)
+    importState.completeCurrentStep({ bookmarks: organizedBookmarks })
+    importState.updateStepData('aiOrganize', { bookmarks: organizedBookmarks })
+    importState.goToNextStep()
+  }
+
+  const handleFinalImport = (bookmarksToImport: EditableBookmark[]) => {
+    tmarksImport.handleFinalImport(
+      bookmarksToImport,
+      importState.importOptions,
+      importState.setIsImporting,
+      setSuccessMessage,
+      setError,
+      importState.goToNextStep,
+      importState.completeCurrentStep
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* 标题 */}
       <div>
         <h3 className="text-xl font-bold text-[var(--tab-options-title)] mb-2">
           {chrome.i18n.getMessage('import_title')}
@@ -117,73 +88,105 @@ export function TMarksImport({ formData, setSuccessMessage, setError }: TMarksIm
         </p>
       </div>
 
-      {/* 步骤指示器 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-            currentStep === 'upload' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}>
-            1
-          </div>
-          <span className="text-sm font-medium">上传文件</span>
-        </div>
-        
-        <ArrowRight className="w-4 h-4 text-gray-400" />
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-            currentStep === 'import' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}>
-            2
-          </div>
-          <span className="text-sm font-medium">导入</span>
-        </div>
-      </div>
+      <ImportStepIndicator
+        currentStep={importState.currentStep}
+        enableAiOrganize={importState.enableAiOrganize}
+        completedSteps={importState.completedSteps}
+        onStepClick={importState.goToStep}
+        canNavigate={true}
+      />
 
-      {/* 步骤内容 */}
-      {currentStep === 'upload' && (
+      {importState.currentStep === 'upload' && (
         <UploadStep
-          selectedFormat={selectedFormat}
-          setSelectedFormat={setSelectedFormat}
-          selectedFile={selectedFile}
-          isValidating={isValidating}
-          normalizeResult={normalizeResult}
-          normalizeProgress={normalizeProgress}
-          enableAiOrganize={false}
-          setEnableAiOrganize={() => {}}
+          selectedFormat={importState.selectedFormat}
+          setSelectedFormat={importState.setSelectedFormat}
+          selectedFile={importState.selectedFile}
+          isValidating={importState.isValidating}
+          normalizeResult={importState.normalizeResult}
+          normalizeProgress={importState.normalizeProgress}
+          enableAiOrganize={importState.enableAiOrganize}
+          setEnableAiOrganize={importState.setEnableAiOrganize}
           isAiRequired={false}
-          options={options}
-          setOptions={setOptions}
-          onFileSelect={handleFileSelect}
-          onReset={handleReset}
+          options={importState.importOptions}
+          setOptions={importState.setImportOptions}
+          onFileSelect={importState.setSelectedFile}
+          onReset={importState.handleReset}
           onStartImport={handleStartImport}
         />
       )}
 
-      {currentStep === 'import' && (
+      {importState.currentStep === 'aiOrganize' && importState.normalizeResult && importState.aiConfig && (
+        <AIOrganizeStep
+          urls={importState.normalizeResult.validUrls}
+          provider={importState.aiConfig.provider}
+          apiKey={importState.aiConfig.apiKey}
+          model={importState.aiConfig.model}
+          apiUrl={importState.aiConfig.apiUrl}
+          existingTags={existingTags}
+          existingFolders={[]}
+          mode="tmarks"
+          onComplete={handleAIOrganizeComplete}
+          onBack={importState.goToPreviousStep}
+        />
+      )}
+
+      {importState.currentStep === 'edit' && (
+        <div className="space-y-4">
+          <EditableBookmarkTable
+            bookmarks={importState.bookmarks}
+            existingTags={existingTags}
+            mode="tmarks"
+            onBookmarksChange={(updatedBookmarks) => {
+              importState.setBookmarks(updatedBookmarks)
+              importState.updateStepData('edit', { bookmarks: updatedBookmarks })
+            }}
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={importState.goToPreviousStep}
+              className="flex-1 px-6 py-3 border border-[var(--tab-options-button-border)] text-[var(--tab-options-button-text)] rounded-lg hover:bg-[var(--tab-options-button-hover-bg)] transition-colors"
+            >
+              返回
+            </button>
+            <button
+              onClick={() => handleFinalImport(importState.bookmarks)}
+              disabled={importState.isImporting || importState.bookmarks.filter(b => b.isSelected).length === 0}
+              className="flex-1 px-6 py-3 bg-[var(--tab-options-button-primary-bg)] text-[var(--tab-options-button-primary-text)] rounded-lg hover:bg-[var(--tab-options-button-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {importState.isImporting ? '导入中...' : `导入 ${importState.bookmarks.filter(b => b.isSelected).length} 个书签`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {importState.currentStep === 'import' && (
         <ImportStepComponent
-          bookmarks={parsedBookmarks}
-          isImporting={isImporting}
-          importProgress={importProgress}
-          importResult={importResult}
+          bookmarks={tmarksImport.parsedBookmarks}
+          isImporting={importState.isImporting}
+          importProgress={tmarksImport.importProgress}
+          importResult={tmarksImport.importResult}
           onImport={async (bookmarks) => {
-            setIsImporting(true)
-            setImportProgress({ current: 0, total: 100, status: '正在导入...' })
+            importState.setIsImporting(true)
+            tmarksImport.setImportProgress({ current: 0, total: 100, status: '正在导入...' })
 
             try {
               const { importToTMarks } = await import('@/lib/import/api')
-              const tmarksUrl = formData.tmarksUrl || 'https://tmarks.example.com'
-              const accessToken = formData.tmarksAccessToken
+              const config = await import('@/lib/utils/storage').then(m => m.StorageService.loadConfig())
+              const tmarksUrl = config.bookmarkSite.apiUrl?.replace(/\/api$/, '') || 'https://tmarks.example.com'
+              const accessToken = config.bookmarkSite.apiKey || formData.tmarksAccessToken
 
-              const result = await importToTMarks(bookmarks, options, tmarksUrl, accessToken)
-              
-              setImportResult(result)
+              if (!accessToken) {
+                throw new Error('未配置 TMarks API Key，请先在设置中配置')
+              }
+
+              const result = await importToTMarks(bookmarks, importState.importOptions, tmarksUrl, accessToken)
+              tmarksImport.setImportResult(result)
               setSuccessMessage(`成功导入 ${result.success} 个书签`)
             } catch (error) {
-              console.error('Import failed:', error)
               setError(error instanceof Error ? error.message : '导入失败')
             } finally {
-              setIsImporting(false)
-              setImportProgress(null)
+              importState.setIsImporting(false)
+              tmarksImport.setImportProgress(null)
             }
           }}
         />

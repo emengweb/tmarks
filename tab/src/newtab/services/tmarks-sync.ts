@@ -3,10 +3,12 @@
  * 负责 NewTab 书签与 TMarks 服务器的同步
  */
 
-import { createTMarksClient } from '@/lib/api/tmarks';
+import { createTMarksClient } from '@/lib/api';
 import { StorageService } from '@/lib/utils/storage';
+import { logger } from '@/lib/utils/logger';
+import { extractErrorMessage } from '@/lib/utils/errorHandler';
 import { t } from '@/lib/i18n';
-import type { GridItem } from '../types';
+import type { Item } from '../types/core';
 
 export interface TMarksSyncResult {
   success: boolean;
@@ -36,10 +38,15 @@ async function getTMarksClient() {
  * 同步创建书签到 TMarks 服务器
  */
 export async function syncCreateBookmarkToTMarks(
-  item: GridItem
+  item: Item
 ): Promise<TMarksSyncResult> {
-  if (item.type !== 'shortcut' || !item.shortcut?.url) {
+  if (item.type !== 'shortcut') {
     return { success: false, error: 'Not a shortcut item' };
+  }
+
+  const data = item.data as { url: string; title: string };
+  if (!data.url) {
+    return { success: false, error: 'No URL' };
   }
 
   const client = await getTMarksClient();
@@ -50,20 +57,24 @@ export async function syncCreateBookmarkToTMarks(
 
   try {
     const response = await client.bookmarks.createBookmark({
-      title: item.shortcut.title,
-      url: item.shortcut.url,
+      title: data.title,
+      url: data.url,
       tags: [], // 可以后续添加标签支持
     });
+
+    if (!response?.data?.bookmark?.id) {
+      throw new Error('Invalid response: missing bookmark id');
+    }
 
     return {
       success: true,
       tmarksBookmarkId: response.data.bookmark.id,
     };
   } catch (error) {
-    console.error('[TMarks Sync] Create bookmark failed:', error);
+    logger.error('[TMarks Sync] Create bookmark failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : t('error_sync_failed'),
+      error: extractErrorMessage(error, t('error_sync_failed')),
     };
   }
 }
@@ -87,10 +98,10 @@ export async function syncTrashBookmarkToTMarks(
     await client.bookmarks.trashBookmark(tmarksBookmarkId);
     return { success: true };
   } catch (error) {
-    console.error('[TMarks Sync] Delete bookmark failed:', error);
+    logger.error('[TMarks Sync] Delete bookmark failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : t('error_sync_delete_failed'),
+      error: extractErrorMessage(error, t('error_sync_delete_failed')),
     };
   }
 }
@@ -115,7 +126,7 @@ export async function syncTrashBookmarksToTMarks(
     try {
       await client.bookmarks.trashBookmark(id);
     } catch (error) {
-      errors.push(`${id}: ${error instanceof Error ? error.message : t('error_unknown')}`);
+      errors.push(`${id}: ${extractErrorMessage(error, t('error_unknown'))}`);
     }
   }
 
@@ -149,10 +160,10 @@ export async function syncUpdateBookmarkToTMarks(
     await client.bookmarks.updateBookmark(tmarksBookmarkId, updates);
     return { success: true };
   } catch (error) {
-    console.error('[TMarks Sync] Update bookmark failed:', error);
+    logger.error('[TMarks Sync] Update bookmark failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : t('error_sync_update_failed'),
+      error: extractErrorMessage(error, t('error_sync_update_failed')),
     };
   }
 }

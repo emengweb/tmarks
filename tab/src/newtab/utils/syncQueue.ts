@@ -3,6 +3,9 @@
  */
 
 import { withRetry, isRetryableError } from './retry';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
+import { NEWTAB_STORAGE_KEYS } from '@/lib/constants/storage-keys';
+import { getStorageItem, setStorageItem, removeStorageItem } from '@/lib/utils/chromeStorage';
 import { logger } from '@/lib/utils/logger';
 
 // 队列项类型
@@ -13,9 +16,6 @@ interface QueueItem<T = unknown> {
   timestamp: number;
   retries: number;
 }
-
-// 存储键名
-const QUEUE_STORAGE_KEY = 'newtab_sync_queue';
 
 // 最大队列长度
 const MAX_QUEUE_SIZE = 100;
@@ -141,7 +141,7 @@ export async function getQueueLength(): Promise<number> {
  * 清空队列
  */
 export async function clearQueue(): Promise<void> {
-  await chrome.storage.local.remove(QUEUE_STORAGE_KEY);
+  await removeStorageItem(NEWTAB_STORAGE_KEYS.SYNC_QUEUE);
   logger.log('Sync queue cleared');
 }
 
@@ -149,22 +149,17 @@ export async function clearQueue(): Promise<void> {
  * 加载队列
  */
 async function loadQueue(): Promise<QueueItem[]> {
-  try {
-    const result = await chrome.storage.local.get(QUEUE_STORAGE_KEY);
-    return (result[QUEUE_STORAGE_KEY] as QueueItem[]) || [];
-  } catch {
-    return [];
-  }
+  const queue = await getStorageItem<QueueItem[]>(NEWTAB_STORAGE_KEYS.SYNC_QUEUE);
+  return queue || [];
 }
 
 /**
  * 保存队列
  */
 async function saveQueue(queue: QueueItem[]): Promise<void> {
-  try {
-    await chrome.storage.local.set({ [QUEUE_STORAGE_KEY]: queue });
-  } catch (error) {
-    logger.error('Failed to save sync queue:', error);
+  const success = await setStorageItem(NEWTAB_STORAGE_KEYS.SYNC_QUEUE, queue);
+  if (!success) {
+    logger.error('Failed to save sync queue');
   }
 }
 
@@ -187,6 +182,6 @@ export function initSyncQueue(): void {
 
   // 页面加载时检查并处理队列
   if (isOnline) {
-    setTimeout(processQueue, 2000);
+    setTimeout(processQueue, TIMEOUTS.NOTIFICATION);
   }
 }

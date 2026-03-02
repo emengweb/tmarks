@@ -60,39 +60,23 @@ export function requireApiKeyAuth(
         })
       }
 
-      // 4. 检查速率限制（如果未配置 KV，则跳过限流，但仍允许请求）
-      const kv = context.env.TMARKS_KV
+      // 4. 检查速率限制（KV 已移除，跳过限流）
+      // const kv = context.env.TMARKS_KV
+      // if (kv) {
+      //   const rateLimitResult = await checkRateLimit(keyData.id, kv)
+      //   if (!rateLimitResult.allowed) {
+      //     return tooManyRequests(...)
+      //   }
+      //   await recordRequest(keyData.id, kv)
+      // }
 
-      if (kv) {
-        const rateLimitResult = await checkRateLimit(keyData.id, kv)
-
-        if (!rateLimitResult.allowed) {
-          return tooManyRequests(
-            {
-              code: 'RATE_LIMIT_EXCEEDED',
-              message: 'Rate limit exceeded',
-              retry_after: rateLimitResult.retryAfter,
-            },
-            {
-              'X-RateLimit-Limit': String(rateLimitResult.limit),
-              'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-              'X-RateLimit-Reset': String(rateLimitResult.reset),
-              'Retry-After': String(rateLimitResult.retryAfter || 60),
-            }
-          )
-        }
-
-        // 5. 记录请求（同步，确保计数准确）
-        await recordRequest(keyData.id, kv)
-      }
-
-      // 6. 获取请求 IP
+      // 5. 获取请求 IP
       const ip =
         request.headers.get('CF-Connecting-IP') ||
         request.headers.get('X-Forwarded-For') ||
         null
 
-      // 7. 传递用户信息到 context.data（必须在返回前设置）
+      // 6. 传递用户信息到 context.data（必须在返回前设置）
       context.data.user_id = keyData.user_id
       context.data.api_key_id = keyData.id
       context.data.api_key_permissions = permissions

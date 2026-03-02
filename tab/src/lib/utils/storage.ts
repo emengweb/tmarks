@@ -1,4 +1,5 @@
 import type { StorageConfig, AIProvider, AIConnectionInfo } from '@/types';
+import { NEWTAB_FOLDER_PROMPT_TEMPLATE } from '@/lib/constants/newtabPrompts';
 
 const DEFAULT_CONFIG: StorageConfig = {
   aiConfig: {
@@ -23,7 +24,12 @@ const DEFAULT_CONFIG: StorageConfig = {
     enableAI: true,
     defaultIncludeThumbnail: true,
     defaultCreateSnapshot: false,
-    tagTheme: 'classic'
+    defaultIsPublic: true,
+    tagTheme: 'classic',
+    newtabFolderRecommendCount: 15,
+    enableNewtabAI: true,
+    enableNewtabFolderPrompt: false,
+    newtabFolderPrompt: NEWTAB_FOLDER_PROMPT_TEMPLATE
   }
 };
 
@@ -104,11 +110,12 @@ export class StorageService {
         enableAI: config.preferences?.enableAI ?? defaults.preferences.enableAI,
         defaultIncludeThumbnail: config.preferences?.defaultIncludeThumbnail ?? defaults.preferences.defaultIncludeThumbnail,
         defaultCreateSnapshot: config.preferences?.defaultCreateSnapshot ?? defaults.preferences.defaultCreateSnapshot,
+        defaultIsPublic: config.preferences?.defaultIsPublic ?? defaults.preferences.defaultIsPublic,
         tagTheme: config.preferences?.tagTheme ?? defaults.preferences.tagTheme,
-        newtabFolderRecommendCount: config.preferences?.newtabFolderRecommendCount ?? (defaults.preferences as any).newtabFolderRecommendCount,
-        enableNewtabAI: config.preferences?.enableNewtabAI ?? (defaults.preferences as any).enableNewtabAI,
-        enableNewtabFolderPrompt: config.preferences?.enableNewtabFolderPrompt ?? (defaults.preferences as any).enableNewtabFolderPrompt,
-        newtabFolderPrompt: config.preferences?.newtabFolderPrompt ?? (defaults.preferences as any).newtabFolderPrompt
+        newtabFolderRecommendCount: config.preferences?.newtabFolderRecommendCount ?? defaults.preferences.newtabFolderRecommendCount,
+        enableNewtabAI: config.preferences?.enableNewtabAI ?? defaults.preferences.enableNewtabAI,
+        enableNewtabFolderPrompt: config.preferences?.enableNewtabFolderPrompt ?? defaults.preferences.enableNewtabFolderPrompt,
+        newtabFolderPrompt: config.preferences?.newtabFolderPrompt ?? defaults.preferences.newtabFolderPrompt
       }
     };
   }

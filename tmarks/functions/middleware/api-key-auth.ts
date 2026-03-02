@@ -5,7 +5,7 @@
 
 import { Context } from 'hono'
 import { validateApiKey, checkPermission, updateLastUsed } from '../lib/api-key/validator'
-import { checkRateLimit, recordRequest } from '../lib/api-key/rate-limiter'
+// import { checkRateLimit, recordRequest } from '../lib/api-key/rate-limiter'
 import { logApiKeyUsage } from '../lib/api-key/logger'
 
 interface ApiKeyAuthOptions {
@@ -68,53 +68,31 @@ export function requireApiKey(options: ApiKeyAuthOptions) {
       )
     }
 
-    // 4. 检查速率限制（如果未配置 KV，则跳过限流，但仍允许请求）
-    const kv = c.env.TMARKS_KV
+    // 4. 检查速率限制（KV 已移除，跳过限流）
+    // const kv = c.env.TMARKS_KV
+    // if (kv) {
+    //   const rateLimitResult = await checkRateLimit(keyData.id, kv)
+    //   if (!rateLimitResult.allowed) {
+    //     return c.json({ error: 'Rate limit exceeded' }, 429)
+    //   }
+    //   await recordRequest(keyData.id, kv)
+    // }
 
-    if (kv) {
-      const rateLimitResult = await checkRateLimit(keyData.id, kv)
-
-      if (!rateLimitResult.allowed) {
-        // 设置速率限制响应头
-        c.header('X-RateLimit-Limit', String(rateLimitResult.limit))
-        c.header('X-RateLimit-Remaining', String(rateLimitResult.remaining))
-        c.header('X-RateLimit-Reset', String(rateLimitResult.reset))
-
-        if (rateLimitResult.retryAfter) {
-          c.header('Retry-After', String(rateLimitResult.retryAfter))
-        }
-
-        return c.json(
-          {
-            error: {
-              code: 'RATE_LIMIT_EXCEEDED',
-              message: 'Rate limit exceeded',
-              retry_after: rateLimitResult.retryAfter,
-            },
-          },
-          429
-        )
-      }
-
-      // 5. 记录请求
-      await recordRequest(keyData.id, kv)
-    }
-
-    // 6. 获取请求 IP
+    // 5. 获取请求 IP
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || null
 
-    // 7. 更新最后使用信息
+    // 6. 更新最后使用信息
     await updateLastUsed(keyData.id, ip, c.env.DB)
 
-    // 8. 传递用户信息到后续处理
+    // 7. 传递用户信息到后续处理
     c.set('user_id', keyData.user_id)
     c.set('api_key_id', keyData.id)
     c.set('api_key_permissions', permissions)
 
-    // 9. 继续处理请求
+    // 8. 继续处理请求
     await next()
 
-    // 10. 请求完成后记录日志
+    // 9. 请求完成后记录日志
     const status = c.res.status
     const endpoint = c.req.path
     const method = c.req.method
@@ -130,11 +108,6 @@ export function requireApiKey(options: ApiKeyAuthOptions) {
       },
       c.env.DB
     )
-
-    // 11. 添加速率限制响应头
-    c.header('X-RateLimit-Limit', String(rateLimitResult.limit))
-    c.header('X-RateLimit-Remaining', String(rateLimitResult.remaining))
-    c.header('X-RateLimit-Reset', String(rateLimitResult.reset))
   }
 }
 

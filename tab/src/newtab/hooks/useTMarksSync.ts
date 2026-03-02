@@ -5,14 +5,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { t } from '@/lib/i18n';
 import { StorageService } from '@/lib/utils/storage';
-import { createTMarksClient, type TMarks } from '@/lib/api/tmarks';
+import { createTMarksClient, type TMarks } from '@/lib/api';
 import { getTMarksUrls } from '@/lib/constants/urls';
+import { TMARKS_STORAGE_KEYS } from '@/lib/constants/storage-keys';
+import { extractErrorMessage } from '@/lib/utils/errorHandler';
 import { logger } from '@/lib/utils/logger';
 import type { TMarksBookmark, SyncState } from '../types';
 import type { Message } from '@/types';
-
-// 缓存键名
-const PINNED_BOOKMARKS_CACHE_KEY = 'tmarks_pinned_bookmarks';
 
 // 缓存数据结构
 interface CachedPinnedBookmarks {
@@ -70,6 +69,7 @@ export function useTMarksSync() {
     isSyncing: false,
     lastSyncAt: null,
     error: null,
+    deviceId: '',
   });
   const [pinnedBookmarks, setPinnedBookmarks] = useState<TMarksBookmark[]>([]);
   const fetchPinnedBookmarksRef = useRef<((forceRefresh?: boolean) => Promise<any>) | null>(null);
@@ -77,8 +77,8 @@ export function useTMarksSync() {
   // 从缓存加载置顶书签（永久缓存，除非主动刷新）
   const loadFromCache = useCallback(async (): Promise<TMarksBookmark[] | null> => {
     try {
-      const result = await chrome.storage.local.get(PINNED_BOOKMARKS_CACHE_KEY);
-      const cached = result[PINNED_BOOKMARKS_CACHE_KEY] as CachedPinnedBookmarks | undefined;
+      const result = await chrome.storage.local.get(TMARKS_STORAGE_KEYS.PINNED_BOOKMARKS);
+      const cached = result[TMARKS_STORAGE_KEYS.PINNED_BOOKMARKS] as CachedPinnedBookmarks | undefined;
 
       if (cached && cached.bookmarks) {
         logger.log('Loaded pinned bookmarks from cache:', cached.bookmarks.length);
@@ -98,7 +98,7 @@ export function useTMarksSync() {
         bookmarks,
         timestamp: Date.now(),
       };
-      await chrome.storage.local.set({ [PINNED_BOOKMARKS_CACHE_KEY]: cached });
+      await chrome.storage.local.set({ [TMARKS_STORAGE_KEYS.PINNED_BOOKMARKS]: cached });
       logger.log('Pinned bookmarks cached');
     } catch (error) {
       logger.error('Failed to save cache:', error);
@@ -116,6 +116,7 @@ export function useTMarksSync() {
           isSyncing: false,
           lastSyncAt: Date.now(),
           error: null,
+          deviceId: '',
         });
         return cached;
       }
@@ -135,14 +136,15 @@ export function useTMarksSync() {
           id: b.id,
           title: b.title,
           is_pinned: b.is_pinned,
+          is_pinned_type: typeof b.is_pinned,
         })),
       });
 
       if (response.data?.bookmarks) {
-        // 双重过滤：确保只显示 is_pinned 为 true 的书签
+        // 标准化为 boolean 类型
         const pinnedOnly = response.data.bookmarks.filter((b) => b.is_pinned === true);
         
-        logger.log('Filtered pinned bookmarks:', pinnedOnly.length);
+        logger.log('Filtered pinned bookmarks:', pinnedOnly.length, '/', response.data.bookmarks.length);
 
         const bookmarks: TMarksBookmark[] = pinnedOnly.map((b) => ({
           id: b.id,
@@ -160,11 +162,12 @@ export function useTMarksSync() {
         isSyncing: false,
         lastSyncAt: Date.now(),
         error: null,
+        deviceId: '',
       });
 
       return response.data?.bookmarks || [];
     } catch (error) {
-      const message = error instanceof Error ? error.message : t('error_sync_failed');
+      const message = extractErrorMessage(error, t('error_sync_failed'));
       logger.error('Fetch pinned bookmarks failed:', error);
       setSyncState((s) => ({
         ...s,
@@ -190,6 +193,10 @@ export function useTMarksSync() {
         url: b.url,
         title: b.title,
         favicon: b.favicon || undefined,
+        tags: b.tags || [],
+        description: b.description,
+        click_count: b.click_count,
+        is_pinned: b.is_pinned,
       }));
     } catch {
       return [];

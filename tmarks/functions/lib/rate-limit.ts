@@ -13,7 +13,7 @@ interface RateLimitConfig {
 }
 
 /**
- * Rate limiter using KV storage
+ * Rate limiter using KV storage（已移除 KV，始终允许请求）
  *
  * Store format in KV:
  * Key: `ratelimit:{identifier}`
@@ -23,68 +23,57 @@ export async function checkRateLimit(
   kv: KVNamespace | undefined,
   config: RateLimitConfig
 ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-  // If KV is not available, allow all requests (development mode)
-  if (!kv) {
-    return {
-      allowed: true,
-      remaining: config.limit,
-      resetAt: Date.now() + config.window * 1000,
-    }
+  // KV 已移除，始终允许所有请求
+  void kv
+  return {
+    allowed: true,
+    remaining: config.limit,
+    resetAt: Date.now() + config.window * 1000,
   }
 
-  const kvKey = `ratelimit:${config.key}`
-  const now = Date.now()
-
-  try {
-    // Get current rate limit data
-    const data = await kv.get(kvKey, 'json') as { count: number; reset_at: number } | null
-
-    // If no data or window expired, create new window
-    if (!data || data.reset_at < now) {
-      const resetAt = now + config.window * 1000
-      await kv.put(
-        kvKey,
-        JSON.stringify({ count: 1, reset_at: resetAt }),
-        { expirationTtl: config.window + 10 } // Add 10 seconds buffer
-      )
-      return {
-        allowed: true,
-        remaining: config.limit - 1,
-        resetAt,
-      }
-    }
-
-    // Check if limit exceeded
-    if (data.count >= config.limit) {
-      return {
-        allowed: false,
-        remaining: 0,
-        resetAt: data.reset_at,
-      }
-    }
-
-    // Increment counter
-    const newCount = data.count + 1
-    await kv.put(
-      kvKey,
-      JSON.stringify({ count: newCount, reset_at: data.reset_at }),
-      { expirationTtl: Math.ceil((data.reset_at - now) / 1000) + 10 }
-    )
-
-    return {
-      allowed: true,
-      remaining: config.limit - newCount,
-      resetAt: data.reset_at,
-    }
-  } catch (error) {
-    console.error('Rate limit check error:', error)
-    // On error, allow the request to avoid blocking legitimate users
-    return {
-      allowed: true,
-      remaining: config.limit,
-      resetAt: now + config.window * 1000,
-    }
-  }
+  // const kvKey = `ratelimit:${config.key}`
+  // const now = Date.now()
+  // try {
+  //   const data = await kv.get(kvKey, 'json') as { count: number; reset_at: number } | null
+  //   if (!data || data.reset_at < now) {
+  //     const resetAt = now + config.window * 1000
+  //     await kv.put(
+  //       kvKey,
+  //       JSON.stringify({ count: 1, reset_at: resetAt }),
+  //       { expirationTtl: config.window + 10 }
+  //     )
+  //     return {
+  //       allowed: true,
+  //       remaining: config.limit - 1,
+  //       resetAt,
+  //     }
+  //   }
+  //   if (data.count >= config.limit) {
+  //     return {
+  //       allowed: false,
+  //       remaining: 0,
+  //       resetAt: data.reset_at,
+  //     }
+  //   }
+  //   const newCount = data.count + 1
+  //   await kv.put(
+  //     kvKey,
+  //     JSON.stringify({ count: newCount, reset_at: data.reset_at }),
+  //     { expirationTtl: Math.ceil((data.reset_at - now) / 1000) + 10 }
+  //   )
+  //   return {
+  //     allowed: true,
+  //     remaining: config.limit - newCount,
+  //     resetAt: data.reset_at,
+  //   }
+  // } catch (error) {
+  //   console.error('Rate limit check error:', error)
+  //   return {
+  //     allowed: true,
+  //     remaining: config.limit,
+  //     resetAt: now + config.window * 1000,
+  //   }
+  // }
 }
 
 /**
@@ -110,7 +99,7 @@ export function getClientIP(request: Request): string {
 }
 
 /**
- * Rate limit middleware factory
+ * Rate limit middleware factory（已移除 KV）
  * Creates a rate limiting middleware with specified config
  */
 export function createRateLimiter(
@@ -120,7 +109,7 @@ export function createRateLimiter(
 ): PagesFunction<Env> {
   return async (context) => {
     const key = getKey(context)
-    const result = await checkRateLimit(context.env.TMARKS_KV, {
+    const result = await checkRateLimit(undefined, {
       key,
       limit,
       window: windowSeconds,

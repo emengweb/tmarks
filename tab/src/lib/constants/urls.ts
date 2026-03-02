@@ -83,10 +83,12 @@ export const EXTERNAL_SERVICES = {
 } as const;
 
 // 超时配置（毫秒）
+import { DURATIONS } from '@/lib/constants/durations';
+
 export const TIMEOUTS = {
     AI_REQUEST: 30000, // 30秒
-    API_REQUEST: 10000, // 10秒
-    CONTENT_SCRIPT_INJECTION: 5000, // 5秒
+    API_REQUEST: DURATIONS.TEN_SECONDS,
+    CONTENT_SCRIPT_INJECTION: DURATIONS.FIVE_SECONDS,
 } as const;
 
 // 分页配置

@@ -3,8 +3,9 @@
  */
 
 import { useState, useEffect } from 'react';
+import { logger } from '@/lib/utils/logger';
 import { t } from '@/lib/i18n';
-import { useNewtabStore } from '../../../hooks/useNewtabStore';
+import { useNewtabStore } from '../../../hooks';
 
 // 设置分组
 export function SettingSection({
@@ -129,6 +130,7 @@ export function TextItem({
         type="text"
         value={value}
         placeholder={placeholder}
+        aria-label={label}
         onChange={(e) => onChange(e.target.value)}
         className="flex-1 bg-white/10 text-white text-sm rounded-lg px-3 py-1.5 outline-none border border-white/10"
       />
@@ -170,7 +172,7 @@ export function RangeItem({
 
 // 缓存图标按钮
 export function CacheFaviconsButton() {
-  const { shortcuts, updateShortcut, gridItems, updateGridItem } = useNewtabStore();
+  const { items, updateItem } = useNewtabStore();
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [storageInfo, setStorageInfo] = useState<{ used: number; total: number } | null>(null);
@@ -182,7 +184,7 @@ export function CacheFaviconsButton() {
         const quota = chrome.storage.local.QUOTA_BYTES || 10485760;
         setStorageInfo({ used: bytes, total: quota });
       } catch (error) {
-        console.error('Failed to get storage info:', error);
+        logger.error('Failed to get storage info:', error);
       }
     };
     loadStorageInfo();
@@ -194,50 +196,43 @@ export function CacheFaviconsButton() {
 
     try {
       const { batchDownloadFavicons } = await import('../../../utils/favicon');
+      
+      const shortcuts = items.filter(item => item.type === 'shortcut');
       let totalCached = 0;
       
       if (shortcuts.length > 0) {
-        const results = await batchDownloadFavicons(shortcuts, (current, total) => {
-          setProgress({ current, total });
-        });
-        
-        results.forEach((base64, id) => {
-          updateShortcut(id, { faviconBase64: base64 });
-        });
-        totalCached += results.size;
-      }
-
-      const gridShortcuts = gridItems.filter(item => item.type === 'shortcut' && item.shortcut);
-      if (gridShortcuts.length > 0) {
-        const gridResults = await batchDownloadFavicons(
-          gridShortcuts.map(item => ({
-            id: item.id,
-            url: item.shortcut!.url,
-            favicon: item.shortcut!.favicon,
-            faviconBase64: item.shortcut!.faviconBase64,
-          })),
+        const results = await batchDownloadFavicons(
+          shortcuts.map(item => {
+            const data = item.data as { url: string; title?: string; favicon?: string };
+            return {
+              id: item.id,
+              url: data.url,
+              favicon: data.favicon,
+            };
+          }),
           (current, total) => {
-            setProgress({ current: current + shortcuts.length, total: total + shortcuts.length });
+            setProgress({ current, total });
           }
         );
-
-        gridResults.forEach((base64, id) => {
-          const item = gridItems.find(i => i.id === id);
-          if (item?.shortcut) {
-            updateGridItem(id, {
-              shortcut: {
-                ...item.shortcut,
-                faviconBase64: base64,
+        
+        results.forEach((base64, id) => {
+          const item = items.find(i => i.id === id);
+          if (item && item.type === 'shortcut') {
+            updateItem(id, {
+              data: {
+                ...(item.data as any),
+                favicon: base64,
               },
             });
           }
         });
-        totalCached += gridResults.size;
+        
+        totalCached = results.size;
       }
 
       alert(t('settings_cache_success', totalCached.toString()));
     } catch (error) {
-      console.error('Failed to cache favicons:', error);
+      logger.error('Failed to cache favicons:', error);
       alert(t('settings_cache_failed'));
     } finally {
       setIsLoading(false);
@@ -245,9 +240,12 @@ export function CacheFaviconsButton() {
     }
   };
 
-  const totalShortcuts = shortcuts.length + gridItems.filter(item => item.type === 'shortcut').length;
-  const cachedCount = shortcuts.filter(s => s.faviconBase64).length + 
-    gridItems.filter(item => item.type === 'shortcut' && item.shortcut?.faviconBase64).length;
+  const totalShortcuts = items.filter(item => item.type === 'shortcut').length;
+  const cachedCount = items.filter(item => {
+    if (item.type !== 'shortcut') return false;
+    const data = item.data as { favicon?: string };
+    return !!data.favicon;
+  }).length;
 
   const formatBytes = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;

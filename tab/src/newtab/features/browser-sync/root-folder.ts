@@ -2,10 +2,10 @@
  * TMarks 根文件夹管理
  */
 
-import { ROOT_TITLE } from './constants';
+import { ROOT_TITLE, getSavedRootFolderId, saveRootFolderId } from './constants';
 import { hasBookmarksApi, getBookmarksBarId, checkFolderExists, getChildren, createBookmark } from './api';
-import { getSavedRootFolderId, saveRootFolderId } from './storage';
 import type { EnsureRootFolderResult } from './types';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * 确保 TMarks 根文件夹存在
@@ -15,7 +15,7 @@ export async function ensureRootFolder(): Promise<EnsureRootFolderResult | null>
 
   const barId = await getBookmarksBarId();
   if (!barId) {
-    console.warn('[TMarks] 无法获取书签栏 ID');
+    logger.warn('[TMarks] 无法获取书签栏 ID');
     return null;
   }
 
@@ -26,7 +26,7 @@ export async function ensureRootFolder(): Promise<EnsureRootFolderResult | null>
     if (existingNode) {
       return { id: savedId, wasRecreated: false };
     }
-    console.log('[TMarks] 根文件夹被删除，正在重新创建...');
+    logger.log('[TMarks] 根文件夹被删除，正在重新创建...');
   }
 
   // 2. 按名称查找
@@ -40,13 +40,13 @@ export async function ensureRootFolder(): Promise<EnsureRootFolderResult | null>
   // 3. 创建新的根文件夹
   const created = await createBookmark({ parentId: barId, title: ROOT_TITLE });
   if (!created) {
-    console.error('[TMarks] 创建根文件夹失败');
+    logger.error('[TMarks] 创建根文件夹失败');
     return null;
   }
 
   await saveRootFolderId(created.id);
   const wasRecreated = savedId !== null;
-  console.log(wasRecreated ? `[TMarks] 根文件夹已重建: ${created.id}` : `[TMarks] 根文件夹已创建: ${created.id}`);
+  logger.log(wasRecreated ? `[TMarks] 根文件夹已重建: ${created.id}` : `[TMarks] 根文件夹已创建: ${created.id}`);
 
   return { id: created.id, wasRecreated };
 }

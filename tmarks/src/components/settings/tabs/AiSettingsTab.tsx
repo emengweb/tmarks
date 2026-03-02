@@ -1,6 +1,6 @@
 /**
  * AI 设置标签页
- * 配置 AI 服务用于智能导入等功能
+ * 配置 AI 服务用于标签推荐、智能分类等功能
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'

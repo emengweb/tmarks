@@ -2,7 +2,9 @@ import { db } from '@/lib/db';
 import { t } from '@/lib/i18n';
 import { bookmarkAPI } from './bookmark-api';
 import { tagRecommender } from './tag-recommender';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
 import type { BookmarkInput, SaveResult } from '@/types';
+import { logger } from '@/lib/utils/logger';
 
 export class BookmarkService {
   /**
@@ -12,26 +14,27 @@ export class BookmarkService {
     let bookmarkId: string | undefined;
     let isExisting = false;
 
-    console.log('[BookmarkService] saveBookmark 开始:', {
+    logger.log('[BookmarkService] saveBookmark 开始:', {
       url: bookmark.url,
       title: bookmark.title,
       tags: bookmark.tags,
       hasThumbnail: !!bookmark.thumbnail,
       hasFavicon: !!bookmark.favicon,
-      createSnapshot: bookmark.createSnapshot
+      createSnapshot: bookmark.createSnapshot,
+      isPublic: bookmark.is_public
     });
 
     try {
       // 1. Save to remote API
-      console.log('[BookmarkService] 步骤1: 调用远程 API...');
+      logger.log('[BookmarkService] 步骤1: 调用远程 API...');
       const result = await bookmarkAPI.addBookmark(bookmark);
       bookmarkId = result.id;
       isExisting = result.isExisting || false;
-      console.log('[BookmarkService] 远程 API 返回:', { bookmarkId, isExisting });
+      logger.log('[BookmarkService] 远程 API 返回:', { bookmarkId, isExisting });
 
       // If bookmark exists, return it for the dialog
       if (isExisting && result.existingBookmark) {
-        console.log('[BookmarkService] Bookmark exists, returning dialog data');
+        logger.log('[BookmarkService] Bookmark exists, returning dialog data');
         return {
           success: true,
           existingBookmark: {
@@ -44,7 +47,7 @@ export class BookmarkService {
 
       // 2. Save to local cache (only for new bookmarks)
       if (!isExisting) {
-        console.log('[BookmarkService] 步骤2: 保存到本地缓存...');
+        logger.log('[BookmarkService] 步骤2: 保存到本地缓存...');
         await db.bookmarks.add({
           url: bookmark.url,
           title: bookmark.title,
@@ -55,11 +58,11 @@ export class BookmarkService {
         });
 
         // 3. Update tag usage counts
-        console.log('[BookmarkService] 步骤3: 更新标签计数...');
+        logger.log('[BookmarkService] 步骤3: 更新标签计数...');
         await this.updateTagCounts(bookmark.tags);
 
         // 4. Update in-memory context cache for AI
-        console.log('[BookmarkService] 步骤4: 更新 AI 上下文缓存...');
+        logger.log('[BookmarkService] 步骤4: 更新 AI 上下文缓存...');
         tagRecommender.updateContextWithBookmark({
           title: bookmark.title,
           tags: bookmark.tags
@@ -72,12 +75,12 @@ export class BookmarkService {
       const errorStatus = error?.status || 0;
       
       // 详细打印错误信息，方便调试
-      console.error('[BookmarkService] ========== 保存书签错误 ==========');
-      console.error('[BookmarkService] 错误消息:', errorMessage);
-      console.error('[BookmarkService] 错误代码:', errorCode);
-      console.error('[BookmarkService] HTTP状态:', errorStatus);
-      console.error('[BookmarkService] 完整错误对象:', error);
-      console.error('[BookmarkService] =====================================');
+      logger.error('[BookmarkService] ========== 保存书签错误 ==========');
+      logger.error('[BookmarkService] 错误消息:', errorMessage);
+      logger.error('[BookmarkService] 错误代码:', errorCode);
+      logger.error('[BookmarkService] HTTP状态:', errorStatus);
+      logger.error('[BookmarkService] 完整错误对象:', error);
+      logger.error('[BookmarkService] =====================================');
 
       // 判断是否是认证相关错误
       const isAuthError = errorCode === 'INVALID_API_KEY' || 
@@ -88,7 +91,7 @@ export class BookmarkService {
                           errorMessage.includes('auth') ||
                           errorMessage.includes('API Key');
       
-      console.log('[BookmarkService] Is auth error:', isAuthError);
+      logger.log('[BookmarkService] Is auth error:', isAuthError);
       
       // 判断是否是真正的网络错误（无法连接服务器）
       const isNetworkError = (errorCode === 'NETWORK_ERROR' || errorStatus === 0) &&
@@ -97,10 +100,10 @@ export class BookmarkService {
                               errorMessage.includes('network') ||
                               errorMessage.includes('connect'));
       
-      console.log('[BookmarkService] Is network error:', isNetworkError);
+      logger.log('[BookmarkService] Is network error:', isNetworkError);
       
       if (isNetworkError) {
-        console.log('[BookmarkService] >>> Entering offline queue');
+        logger.log('[BookmarkService] >>> Entering offline queue');
         // Queue for later sync
         await this.queueForLaterSync(bookmark);
 
@@ -112,7 +115,7 @@ export class BookmarkService {
       }
       
       // 对于认证错误和其他错误，直接抛出，让UI显示详细错误信息
-      console.log('[BookmarkService] >>> 直接抛出错误，不进入离线队列');
+      logger.log('[BookmarkService] >>> 直接抛出错误，不进入离线队列');
       throw error;
     }
 
@@ -139,12 +142,26 @@ export class BookmarkService {
             });
             
             const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('Capture timeout')), 35000);
+              setTimeout(() => reject(new Error('Capture timeout')), TIMEOUTS.AI_RECOMMEND);
             });
             
-            const response = await Promise.race([capturePromise, timeoutPromise]) as any;
+            interface CaptureResponse {
+              success: boolean;
+              error?: string;
+              data?: {
+                html: string;
+                images: Array<{
+                  hash: string;
+                  data: string;
+                  type: string;
+                  size: number;
+                }>;
+              };
+            }
             
-            if (response.success) {
+            const response = await Promise.race([capturePromise, timeoutPromise]) as CaptureResponse;
+            
+            if (response.success && response.data) {
               captureResult = response.data;
             } else {
               throw new Error(response.error || 'Capture failed');

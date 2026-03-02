@@ -2,9 +2,8 @@
  * 首页文件夹管理
  */
 
-import { HOME_FOLDER_TITLE } from './constants';
+import { HOME_FOLDER_TITLE, getSavedHomeFolderId, saveHomeFolderId } from './constants';
 import { hasBookmarksApi, checkFolderExists, getChildren, createBookmark, moveBookmark } from './api';
-import { getSavedHomeFolderId, saveHomeFolderId } from './storage';
 import type { EnsureHomeFolderResult } from './types';
 
 /**

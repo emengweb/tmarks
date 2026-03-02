@@ -2,6 +2,7 @@
  * Chrome Bookmarks API 封装
  */
 
+import { logger } from '@/lib/utils/logger';
 import { BOOKMARKS_BAR_TITLES } from './constants';
 
 /** 检查书签 API 是否可用 */
@@ -63,7 +64,7 @@ export async function createBookmark(params: {
   try {
     return await chrome.bookmarks.create(params);
   } catch (error) {
-    console.error('[Bookmarks API] 创建失败:', error);
+    logger.error('[Bookmarks API] 创建失败:', error);
     return null;
   }
 }
@@ -77,7 +78,7 @@ export async function moveBookmark(
   try {
     return await chrome.bookmarks.move(id, destination);
   } catch (error) {
-    console.error('[Bookmarks API] 移动失败:', error);
+    logger.error('[Bookmarks API] 移动失败:', error);
     return null;
   }
 }
@@ -91,7 +92,7 @@ export async function updateBookmark(
   try {
     return await chrome.bookmarks.update(id, changes);
   } catch (error) {
-    console.error('[Bookmarks API] 更新失败:', error);
+    logger.error('[Bookmarks API] 更新失败:', error);
     return null;
   }
 }
@@ -103,7 +104,7 @@ export async function removeBookmark(id: string): Promise<boolean> {
     await chrome.bookmarks.remove(id);
     return true;
   } catch (error) {
-    console.error('[Bookmarks API] 删除失败:', error);
+    logger.error('[Bookmarks API] 删除失败:', error);
     return false;
   }
 }
@@ -115,7 +116,7 @@ export async function removeTree(id: string): Promise<boolean> {
     await chrome.bookmarks.removeTree(id);
     return true;
   } catch (error) {
-    console.error('[Bookmarks API] 删除树失败:', error);
+    logger.error('[Bookmarks API] 删除树失败:', error);
     return false;
   }
 }

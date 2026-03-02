@@ -1,5 +1,8 @@
 import { t } from '@/lib/i18n';
 import { DEFAULT_PROMPT_TEMPLATE } from '@/lib/constants/prompts';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
+import { logger } from '@/lib/utils/logger';
+import type { FormDataSetter } from '@/types/form';
 
 interface TMarksTagSectionProps {
   formData: {
@@ -8,7 +11,7 @@ interface TMarksTagSectionProps {
     enableCustomPrompt: boolean;
     customPrompt: string;
   };
-  setFormData: (data: any) => void;
+  setFormData: FormDataSetter;
   setSuccessMessage: (msg: string | null) => void;
 }
 
@@ -39,7 +42,14 @@ export function TMarksTagSection({ formData, setFormData, setSuccessMessage }: T
               type="button"
               role="switch"
               aria-checked={formData.enableAI}
-              onClick={() => setFormData({ ...formData, enableAI: !formData.enableAI })}
+              onClick={() => {
+                const newEnableAI = !formData.enableAI;
+                setFormData({ 
+                  ...formData, 
+                  enableAI: newEnableAI,
+                  enableCustomPrompt: newEnableAI ? true : formData.enableCustomPrompt
+                });
+              }}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--tab-options-button-primary-bg)] focus:ring-offset-2 ${
                 formData.enableAI ? 'bg-[var(--tab-options-button-primary-bg)]' : 'bg-[var(--tab-options-button-hover-bg)]'
               }`}
@@ -115,10 +125,14 @@ export function TMarksTagSection({ formData, setFormData, setSuccessMessage }: T
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(DEFAULT_PROMPT_TEMPLATE).then(() => {
-                          setSuccessMessage(t('options_example_copied'));
-                          setTimeout(() => setSuccessMessage(null), 2000);
-                        });
+                        navigator.clipboard.writeText(DEFAULT_PROMPT_TEMPLATE)
+                          .then(() => {
+                            setSuccessMessage(t('options_example_copied'));
+                            setTimeout(() => setSuccessMessage(null), TIMEOUTS.NOTIFICATION);
+                          })
+                          .catch((error) => {
+                            logger.error('Failed to copy to clipboard:', error);
+                          });
                       }}
                       className="text-xs px-2 py-1 bg-[var(--tab-options-button-primary-bg)] hover:bg-[var(--tab-options-button-primary-hover)] text-[var(--tab-options-button-primary-text)] rounded-md transition-colors duration-200"
                     >

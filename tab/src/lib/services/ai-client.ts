@@ -24,10 +24,21 @@ interface RequestPayload {
 interface ProviderConfig {
   defaultBaseUrl: string;
   buildRequest: (params: InvokeParams) => RequestPayload;
-  extractContent: (data: unknown) => string | undefined;
+  extractContent: (data: AnthropicResponse | OpenAIResponse | Record<string, unknown>) => string | undefined;
 }
 
-const openAIStyleExtractor = (data: unknown): string | undefined => {
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: { content?: string };
+    text?: string;
+  }>;
+  message?: { content?: string };
+  text?: string;
+  output_text?: string;
+  output?: { text?: string };
+}
+
+const openAIStyleExtractor = (data: OpenAIResponse | Record<string, unknown>): string | undefined => {
   if (!data || typeof data !== 'object') return undefined;
   const dataObj = data as Record<string, unknown>;
   
@@ -91,7 +102,17 @@ const openAIStyleExtractor = (data: unknown): string | undefined => {
   return undefined;
 };
 
-const anthropicExtractor = (data: any): string | undefined => {
+interface AnthropicContent {
+  type: string;
+  text?: string;
+}
+
+interface AnthropicResponse {
+  content?: AnthropicContent[];
+  output_text?: string;
+}
+
+const anthropicExtractor = (data: AnthropicResponse): string | undefined => {
   const content = data?.content;
   if (Array.isArray(content) && content[0]?.type === 'text' && typeof content[0]?.text === 'string') {
     return content[0].text.trim();
@@ -283,7 +304,7 @@ const providerConfigs: Record<ProviderName, ProviderConfig> = {
 
 export interface AIInvokeResult {
   content: string;
-  raw: any;
+  raw: unknown;
 }
 
 export async function callAI(params: InvokeParams): Promise<AIInvokeResult> {

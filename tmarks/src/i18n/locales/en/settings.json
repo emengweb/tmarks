@@ -311,15 +311,18 @@
       "currentUsage": "Current usage",
       "unlimited": "Unlimited"
     },
-    "importExport": {
-      "title": "Data Import/Export",
-      "description": "Import, export, and backup your bookmark data",
-      "export": "Export Data",
-      "import": "Import Data"
+    "export": {
+      "title": "Export Data",
+      "description": "Export bookmark data to file for backup",
+      "tip1": "Contains complete data, suitable for backup and migration",
+      "tip2": "Can choose to include tags, metadata, etc.",
+      "htmlTip1": "Compatible with browser standard format",
+      "htmlTip2": "Can be exported as browser bookmark format",
+      "htmlTip3": "Preserve folder structure and bookmark hierarchy"
     },
+    "exportSuccess": "Export successful: {{details}}",
     "lastOperation": {
       "export": "Data Export",
-      "import": "Data Import",
       "cleanup": "Snapshot Cleanup"
     },
     "snapshotManagement": {
@@ -335,22 +338,6 @@
       "jsonTitle": "JSON Format",
       "htmlTitle": "HTML Format"
     },
-    "importFeature": {
-      "title": "Import Features",
-      "description": "Import bookmark data from various sources",
-      "supportedFormats": "Supported Formats",
-      "smartProcessing": "Smart Processing",
-      "formatTip1": "HTML bookmark files exported from browsers",
-      "formatTip2": "JSON format bookmark data",
-      "formatTip3": "Auto-detect and skip duplicate bookmarks",
-      "formatTip4": "Convert folder structure to tags",
-      "processTip1": "Support batch processing of large files",
-      "processTip2": "Auto-extract bookmark metadata",
-      "processTip3": "Preserve creation time and description",
-      "processTip4": "Show detailed import result report"
-    },
-    "importSuccess": "Successfully imported {{success}} bookmarks, created {{tags}} tags{{failed}}",
-    "importFailed": ", {{count}} failed",
     "fetchBookmarksFailed": "Failed to fetch bookmark list",
     "cleanSnapshotsFailed": "Failed to clean snapshots",
     "cleanSnapshotsSuccess": "Successfully cleaned {{count}} orphan snapshot records",
@@ -364,18 +351,6 @@
       "tip2": "Delete database records for non-existent R2 files",
       "tip3": "Automatically update bookmark snapshot counts",
       "tip4": "Useful for data repair after manually deleting R2 files"
-    },
-    "export": {
-      "tip1": "Contains complete data, suitable for backup and migration",
-      "tip2": "Can choose to include tags, metadata, etc.",
-      "tip3": "Supports re-import to this system",
-      "htmlTip1": "Compatible with browser standard format",
-      "htmlTip2": "Can be directly imported to Chrome, Firefox, Edge, etc.",
-      "htmlTip3": "Preserve folder structure and bookmark hierarchy"
-    },
-    "aiSettings": {
-      "title": "AI Smart Organize",
-      "description": "Configure AI service for smart tag generation and categorization when importing bookmarks"
     }
   },
   "browser": {
@@ -550,7 +525,7 @@
   "ai": {
     "custom": "Custom",
     "title": "AI Service Configuration",
-    "description": "Configure AI service for smart import, tag suggestions, etc.",
+    "description": "Configure AI service for tag suggestions, smart categorization, etc.",
     "enable": "Enable AI Features",
     "enabled": "Enabled",
     "enableHint": "Enable to use AI smart organization features",
@@ -579,7 +554,7 @@
       "tip1": "API Key is encrypted and stored on server, will not be leaked",
       "tip2": "AI calls are made directly from browser, data doesn't pass through TMarks server",
       "tip3": "Recommended: DeepSeek or gpt-4o-mini for best value",
-      "tip4": "Importing 100 bookmarks costs about $0.01-0.05"
+      "tip4": "Processing 100 bookmarks costs about $0.01-0.05"
     }
   }
 }

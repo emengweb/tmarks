@@ -4,16 +4,16 @@
  */
 
 import type { PagesFunction } from '@cloudflare/workers-types'
-import type { Env, RouteParams } from '../../../../lib/types'
-import { success, badRequest, internalError } from '../../../../lib/response'
-import { requireApiKeyAuth, ApiKeyAuthContext } from '../../../../middleware/api-key-auth-pages'
+import type { Env, RouteParams } from '../../../lib/types'
+import { success, badRequest, internalError } from '../../../lib/response'
+import { requireApiKeyAuth, ApiKeyAuthContext } from '../../../middleware/api-key-auth-pages'
 import type { 
   SyncPushRequest, 
   SyncPushResponse,
   SyncPullParams,
   SyncPullResponse,
   Operation 
-} from '../../../../shared/newtab-sync-types'
+} from '../../../shared/newtab-sync-types'
 
 // ============================================
 // POST /api/tab/newtab/sync-v2/push

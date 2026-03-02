@@ -10,6 +10,7 @@ export interface AIConfigFormData {
   apiKey: string;
   apiUrl: string;
   aiModel: string;
+  maxImportGroups?: number; // NewTab 批量导入最大分组数
 }
 
 export interface AIConfigSectionProps {

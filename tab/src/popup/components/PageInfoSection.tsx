@@ -140,12 +140,14 @@ export function PageInfoSection({
                 if (e.key === 'Enter') handleApplyTitleOverride();
               }}
               placeholder={t('placeholder_custom_title')}
+              aria-label={t('placeholder_custom_title')}
               className="flex-1 rounded-xl border border-[var(--tab-popup-input-border)] bg-[var(--tab-popup-input-bg)] px-3 py-2 text-sm text-[var(--tab-popup-input-text)] placeholder:text-[var(--tab-popup-input-placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--tab-popup-input-focus-ring)] focus:border-[var(--tab-popup-input-focus-border)]"
               autoFocus
             />
             <button
               onClick={handleApplyTitleOverride}
               disabled={!titleOverride.trim()}
+              aria-label={t('popup_apply')}
               className="rounded-xl bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-2 text-sm font-medium text-[var(--tab-popup-primary-text)] shadow-sm transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
             >
               {t('popup_apply')}
@@ -162,12 +164,14 @@ export function PageInfoSection({
                 if (e.key === 'Enter' && e.ctrlKey) handleApplyDescriptionOverride();
               }}
               placeholder={t('placeholder_custom_desc')}
+              aria-label={t('placeholder_custom_desc')}
               rows={2}
               className="flex-1 rounded-xl border border-[var(--tab-popup-input-border)] bg-[var(--tab-popup-input-bg)] px-3 py-2 text-sm text-[var(--tab-popup-input-text)] placeholder:text-[var(--tab-popup-input-placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--tab-popup-input-focus-ring)] focus:border-[var(--tab-popup-input-focus-border)] resize-none"
               autoFocus
             />
             <button
               onClick={handleApplyDescriptionOverride}
+              aria-label={t('popup_apply')}
               className="rounded-xl bg-gradient-to-r from-[var(--tab-popup-primary-from)] to-[var(--tab-popup-primary-via)] px-4 py-2 text-sm font-medium text-[var(--tab-popup-primary-text)] shadow-sm transition-all duration-200 hover:shadow-md active:scale-95"
             >
               {t('popup_apply')}

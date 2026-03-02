@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { t } from '@/lib/i18n';
-import { useNewtabStore } from '../../../hooks/useNewtabStore';
+import { useNewtabStore } from '../../../hooks';
 import { StorageService } from '@/lib/utils/storage';
 import { getTMarksUrls } from '@/lib/constants/urls';
 import { SettingSection, ToggleItem, SelectItem } from '../components/SettingItems';

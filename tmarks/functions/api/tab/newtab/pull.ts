@@ -4,10 +4,10 @@
  */
 
 import type { PagesFunction } from '@cloudflare/workers-types'
-import type { Env, RouteParams } from '../../../../lib/types'
-import { success, badRequest, internalError } from '../../../../lib/response'
-import { requireApiKeyAuth, ApiKeyAuthContext } from '../../../../middleware/api-key-auth-pages'
-import type { SyncPullResponse, Operation } from '../../../../shared/newtab-sync-types'
+import type { Env, RouteParams } from '../../../lib/types'
+import { success, badRequest, internalError } from '../../../lib/response'
+import { requireApiKeyAuth, ApiKeyAuthContext } from '../../../middleware/api-key-auth-pages'
+import type { SyncPullResponse, Operation } from '../../../shared/newtab-sync-types'
 
 // ============================================
 // GET /api/tab/newtab/pull?since=<timestamp>&device_id=<id>

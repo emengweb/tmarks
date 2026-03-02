@@ -5,6 +5,7 @@
 import { EXCLUDED_FOLDER_TITLES } from './constants';
 import { getChildren, isFolder } from './api';
 import type { AddGroupFn, SetGroupBookmarkFolderIdFn, GetGroupsFn, DiscoverResult } from './types';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * 自动发现 TMarks 根文件夹下的一级文件夹，并为其创建对应的分组
@@ -21,7 +22,7 @@ export async function autoDiscoverAndCreateGroups(
     const rootChildren = await getChildren(rootId);
     const folders = rootChildren.filter(isFolder);
 
-    console.log(`[TMarks] 发现 ${folders.length} 个一级文件夹`);
+    logger.log(`[TMarks] 发现 ${folders.length} 个一级文件夹`);
 
     for (const folder of folders) {
       if (EXCLUDED_FOLDER_TITLES.has(folder.title)) {
@@ -39,11 +40,11 @@ export async function autoDiscoverAndCreateGroups(
       const existingGroup = currentGroups.find((g) => g.name === folder.title);
 
       if (!existingGroup) {
-        console.log(`[TMarks] 自动创建分组: ${folder.title}`);
+        logger.log(`[TMarks] 自动创建分组: ${folder.title}`);
         addGroup(folder.title, 'Folder', { bookmarkFolderId: folder.id, skipBookmarkFolderCreation: true });
         result.created.push(folder.title);
       } else if (!existingGroup.bookmarkFolderId) {
-        console.log(`[TMarks] 补充关联分组: ${folder.title}`);
+        logger.log(`[TMarks] 补充关联分组: ${folder.title}`);
         setGroupBookmarkFolderId(existingGroup.id, folder.id);
         result.linked.push(folder.title);
       } else {
@@ -51,7 +52,7 @@ export async function autoDiscoverAndCreateGroups(
       }
     }
   } catch (error) {
-    console.error('[TMarks] 自动发现分组失败:', error);
+    logger.error('[TMarks] 自动发现分组失败:', error);
   }
 
   return result;

@@ -57,18 +57,18 @@ export class CacheService {
         }
       }
 
-      // L2: KV 缓存
-      if (this.env.TMARKS_KV) {
-        const kvCached = await this.getFromKV<T>(type, key)
-        if (kvCached !== null) {
-          this.hits++
-          // 回填内存缓存
-          if (this.config.memoryCache.enabled) {
-            this.setToMemory(key, kvCached)
-          }
-          return kvCached
-        }
-      }
+      // L2: KV 缓存（已移除）
+      // if (this.env.TMARKS_KV) {
+      //   const kvCached = await this.getFromKV<T>(type, key)
+      //   if (kvCached !== null) {
+      //     this.hits++
+      //     // 回填内存缓存
+      //     if (this.config.memoryCache.enabled) {
+      //       this.setToMemory(key, kvCached)
+      //     }
+      //     return kvCached
+      //   }
+      // }
 
       this.misses++
       return null
@@ -106,10 +106,10 @@ export class CacheService {
         this.setToMemory(key, data)
       }
 
-      // L2: KV 缓存 (只在策略启用时写入)
-      if (this.config.strategies[type] && this.env.TMARKS_KV) {
-        await this.setToKV(type, key, data, options)
-      }
+      // L2: KV 缓存（已移除）
+      // if (this.config.strategies[type] && this.env.TMARKS_KV) {
+      //   await this.setToKV(type, key, data, options)
+      // }
     } catch (error) {
       this.handleError('set', error)
     }
@@ -123,10 +123,10 @@ export class CacheService {
       // 删除内存缓存
       this.memCache.delete(key)
 
-      // 删除 KV 缓存
-      if (this.env.TMARKS_KV) {
-        await this.env.TMARKS_KV.delete(key)
-      }
+      // 删除 KV 缓存（已移除）
+      // if (this.env.TMARKS_KV) {
+      //   await this.env.TMARKS_KV.delete(key)
+      // }
     } catch (error) {
       this.handleError('delete', error)
     }
@@ -281,28 +281,30 @@ export class CacheService {
   }
 
   /**
-   * 失效 KV 缓存
+   * 失效 KV 缓存（已移除）
    */
   private async invalidateKV(prefix: string): Promise<void> {
-    if (!this.env.TMARKS_KV) return
-
-    try {
-      const keys = await this.env.TMARKS_KV.list({ prefix })
-      await Promise.all(
-        keys.keys.map(k => this.env.TMARKS_KV!.delete(k.name))
-      )
-    } catch (error) {
-      console.warn('KV invalidate error:', error)
-    }
+    // KV 已移除，跳过
+    void prefix
+    // if (!this.env.TMARKS_KV) return
+    // try {
+    //   const keys = await this.env.TMARKS_KV.list({ prefix })
+    //   await Promise.all(
+    //     keys.keys.map(k => this.env.TMARKS_KV!.delete(k.name))
+    //   )
+    // } catch (error) {
+    //   console.warn('KV invalidate error:', error)
+    // }
   }
 
   /**
-   * 获取 KV Namespace（统一使用 TMARKS_KV）
+   * 获取 KV Namespace（已移除）
    */
   private getKVNamespace(type: CacheStrategyType): KVNamespace | undefined {
-    // 参数目前未用于区分不同策略的 KV，但保留以便未来扩展
+    // KV 已移除
     void type
-    return this.env.TMARKS_KV
+    return undefined
+    // return this.env.TMARKS_KV
   }
 
   /**

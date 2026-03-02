@@ -1,6 +1,7 @@
 import type { PageInfo } from '@/types';
 import type { NewtabFolder, NewtabSuggestion } from '../hooks/useNewtabState';
 import { t } from '@/lib/i18n';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 interface NewtabModeViewProps {
   currentPage: PageInfo | null;
@@ -13,6 +14,8 @@ interface NewtabModeViewProps {
   newtabFolders: NewtabFolder[];
   currentNewtabFolderId: string | null;
   newtabRootId: string | null;
+  isAIEnabled: boolean;
+  isRecommending: boolean;
 }
 
 export function NewtabModeView({
@@ -26,6 +29,8 @@ export function NewtabModeView({
   newtabFolders,
   currentNewtabFolderId,
   newtabRootId,
+  isAIEnabled,
+  isRecommending,
 }: NewtabModeViewProps) {
   const formatPathDisplay = (path: string) => {
     const parts = path.split('/');
@@ -53,6 +58,14 @@ export function NewtabModeView({
           </div>
         </div>
       </section>
+
+      {/* AI 推荐中 Loading */}
+      {isRecommending && (
+        <section className="flex-shrink-0 flex items-center gap-3 rounded-xl border border-[var(--tab-popup-border)] bg-[var(--tab-popup-section-gray-bg)] p-3.5 text-sm text-[var(--tab-popup-text)] shadow-lg">
+          <LoadingSpinner />
+          <p>{t('msg_ai_recommending_folder')}</p>
+        </section>
+      )}
 
       <section className="flex min-h-0 flex-1 flex-col rounded-xl border border-[var(--tab-popup-section-emerald-border)] bg-gradient-to-br from-[var(--tab-popup-section-emerald-from)] to-[var(--tab-popup-section-emerald-to)] p-3.5 shadow-lg">
         <div className="mb-2 flex items-center justify-between">
@@ -82,6 +95,17 @@ export function NewtabModeView({
         {newtabFoldersLoadError && (
           <div className="mb-2 rounded-lg border border-[var(--tab-popup-border-strong)] bg-[var(--tab-popup-surface)] px-3 py-1.5 text-xs text-[var(--tab-popup-text-muted)]">
             {newtabFoldersLoadError}
+          </div>
+        )}
+
+        {!isAIEnabled && !isRecommending && newtabSuggestions.length === 0 && (
+          <div className="mb-2 rounded-lg border border-[var(--tab-popup-section-amber-border)] bg-gradient-to-br from-[var(--tab-popup-section-amber-from)] to-[var(--tab-popup-section-amber-to)] p-2.5">
+            <div className="flex items-start gap-2">
+              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--tab-popup-section-amber-icon)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-xs text-[var(--tab-popup-section-amber-text)]">AI 文件夹推荐已关闭，请手动选择文件夹</p>
+            </div>
           </div>
         )}
 

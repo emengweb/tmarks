@@ -55,30 +55,16 @@ export function AIConfigSection({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[color:var(--tab-options-card-border)] bg-[color:var(--tab-options-card-bg)] shadow-sm backdrop-blur transition-shadow hover:shadow-lg">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--tab-options-modal-topbar-from)] via-[var(--tab-options-modal-topbar-via)] to-[var(--tab-options-modal-topbar-to)]" />
+    <div className="relative overflow-visible rounded-2xl border border-[color:var(--tab-options-card-border)] bg-[color:var(--tab-options-card-bg)] shadow-sm backdrop-blur transition-shadow hover:shadow-lg">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--tab-options-modal-topbar-from)] via-[var(--tab-options-modal-topbar-via)] to-[var(--tab-options-modal-topbar-to)] rounded-t-2xl overflow-hidden" />
 
       <div className="p-8 pt-12 space-y-8">
         {/* 头部 */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-[var(--tab-options-title)]">{t('options_ai_config_title')}</h2>
-            <p className="mt-2 text-sm text-[var(--tab-options-text)]">
-              {t('options_ai_config_desc')}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onSaveConnectionPreset}
-            disabled={!formData.apiKey.trim()}
-            className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              formData.apiKey.trim()
-                ? 'bg-[var(--tab-options-button-primary-bg)] text-[var(--tab-options-button-primary-text)] hover:bg-[var(--tab-options-button-primary-hover)] shadow-sm'
-                : 'bg-[var(--tab-options-button-hover-bg)] text-[var(--tab-options-text-muted)] cursor-not-allowed'
-            }`}
-          >
-            {t('options_save_config')}
-          </button>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-2xl font-semibold text-[var(--tab-options-title)]">{t('options_ai_config_title')}</h2>
+          <p className="text-sm text-[var(--tab-options-text)]">
+            {t('options_ai_config_desc')}
+          </p>
         </div>
 
         <div className="space-y-6">
@@ -90,6 +76,8 @@ export function AIConfigSection({
             onApply={onApplySavedConnection}
             onDelete={onDeleteSavedConnection}
             currentProvider={formData.aiProvider}
+            onSaveCurrentConfig={onSaveConnectionPreset}
+            hasCurrentConfig={formData.apiKey.trim().length > 0}
           />
 
           {/* AI 引擎选择 */}
@@ -158,6 +146,29 @@ export function AIConfigSection({
             >
               {isTesting ? t('options_testing') : t('options_test_connection')}
             </button>
+          </div>
+
+          {/* NewTab 批量导入最大分组数 */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--tab-options-text)] mb-3">
+              {t('options_max_import_groups')}
+            </label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={formData.maxImportGroups || 7}
+                onChange={(e) => setFormData({ ...formData, maxImportGroups: Number(e.target.value) })}
+                className="flex-1"
+              />
+              <span className="text-sm font-medium text-[var(--tab-options-title)] min-w-[3rem] text-right">
+                {formData.maxImportGroups || 7} 个
+              </span>
+            </div>
+            <p className="text-xs text-[var(--tab-options-text)] mt-2">
+              {t('options_max_import_groups_desc')}
+            </p>
           </div>
         </div>
       </div>

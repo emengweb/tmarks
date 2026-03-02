@@ -1,14 +1,10 @@
 import { t } from '@/lib/i18n';
+import type { FormDataSetter } from '@/types/form';
+import type { OptionsFormData } from '@/options/hooks/form/types';
 
 interface PreferencesSectionProps {
-  formData: {
-    theme: 'light' | 'dark' | 'auto';
-    themeStyle: 'default' | 'bw' | 'tmarks';
-    defaultIncludeThumbnail: boolean;
-    defaultCreateSnapshot: boolean;
-    tagTheme: 'classic' | 'mono' | 'bw';
-  };
-  setFormData: (data: any) => void;
+  formData: OptionsFormData;
+  setFormData: FormDataSetter;
 }
 
 export function PreferencesSection({ formData, setFormData }: PreferencesSectionProps) {
@@ -23,7 +19,7 @@ export function PreferencesSection({ formData, setFormData }: PreferencesSection
             <p className="mt-2 text-sm text-[var(--tab-options-text)]">{t('pref_appearance_desc')}</p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-3">
             <div>
               <label className="block text-sm font-medium text-[var(--tab-options-text)] mb-2">{t('pref_theme')}</label>
               <div className="inline-flex rounded-xl border border-[color:var(--tab-options-card-border)] bg-[color:var(--tab-options-card-bg)] p-1 text-sm font-medium text-[var(--tab-options-text)]">
@@ -196,6 +192,28 @@ export function PreferencesSection({ formData, setFormData }: PreferencesSection
                 <span
                   className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--tab-options-switch-thumb)] shadow ring-0 transition duration-200 ease-in-out ${
                     formData.defaultCreateSnapshot ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between py-3 border-t border-[color:var(--tab-options-card-border)]">
+              <div>
+                <label className="block text-sm font-medium text-[var(--tab-options-text)]">{t('pref_public')}</label>
+                <p className="mt-1 text-xs text-[var(--tab-options-text-muted)]">{t('pref_public_hint')}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formData.defaultIsPublic}
+                onClick={() => setFormData({ ...formData, defaultIsPublic: !formData.defaultIsPublic })}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--tab-options-button-primary-bg)] focus:ring-offset-2 ${
+                  formData.defaultIsPublic ? 'bg-[var(--tab-options-button-primary-bg)]' : 'bg-[var(--tab-options-button-hover-bg)]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--tab-options-switch-thumb)] shadow ring-0 transition duration-200 ease-in-out ${
+                    formData.defaultIsPublic ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>

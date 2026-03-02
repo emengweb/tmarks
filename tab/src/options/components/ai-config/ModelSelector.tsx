@@ -93,6 +93,7 @@ export function ModelSelector({
             value={model}
             onChange={(e) => onModelChange(e.target.value)}
             placeholder={modelPlaceholders[provider]}
+            aria-label={t('options_model_name')}
             className="flex-1 px-3 py-2 border border-[color:var(--tab-options-button-border)] rounded-lg bg-[color:var(--tab-options-card-bg)] text-[var(--tab-options-title)] focus:outline-none focus:ring-2 focus:ring-[var(--tab-options-button-primary-bg)]"
           />
           {hasModelOptions && (
@@ -108,7 +109,7 @@ export function ModelSelector({
         </div>
 
         {hasModelOptions && dropdownOpen && (
-          <div className="absolute z-10 mt-2 right-0 w-full max-h-[33vh] overflow-y-auto rounded-lg border border-[color:var(--tab-options-card-border)] bg-[color:var(--tab-options-modal-bg)] shadow-2xl">
+          <div className="absolute z-50 mt-2 right-0 w-full max-h-[33vh] overflow-y-auto rounded-lg border border-[color:var(--tab-options-card-border)] bg-[color:var(--tab-options-modal-bg)] shadow-2xl">
             {availableModels.map((m) => {
               const isActive = model === m;
               return (

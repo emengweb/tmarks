@@ -3,6 +3,7 @@
  */
 
 import { t } from '@/lib/i18n';
+import { logger } from '@/lib/utils/logger';
 import type { Message, MessageResponse } from '@/types';
 import { StorageService } from '@/lib/utils/storage';
 import { callAI } from '@/lib/services/ai-client';
@@ -99,7 +100,7 @@ export async function handleRecommendNewtabFolder(
 
   const suggested = Array.isArray(parsed?.suggestedFolders) ? parsed.suggestedFolders : [];
   if (suggested.length === 0 && aiContent.trim()) {
-    console.warn(
+    logger.warn(
       '[NewTab Folder Recommend] AI result not parsable or empty suggestedFolders',
       {
         provider: config.aiConfig.provider,

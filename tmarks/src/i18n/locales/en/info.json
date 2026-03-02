@@ -156,7 +156,7 @@
       "description": "TMarks provides online bookmark management services, including but not limited to:",
       "item1": "Creating, editing, deleting, and organizing bookmarks",
       "item2": "Tag system and tab group management",
-      "item3": "Bookmark import, export, and sharing",
+      "item3": "Bookmark export and sharing",
       "item4": "Browser extension and API access"
     },
     "responsibility": {
@@ -299,9 +299,9 @@
         "title": "Browser Extension",
         "description": "Install and configure browser extension for quick bookmark saving"
       },
-      "importExport": {
-        "title": "Import & Export",
-        "description": "Migrate data from other bookmark management tools"
+      "export": {
+        "title": "Data Export",
+        "description": "Export bookmark data for backup"
       },
       "share": {
         "title": "Public Sharing",
@@ -314,18 +314,16 @@
       "a1": "Click the 'Add Bookmark' button in the top right corner, fill in the bookmark information and save. You can also use the browser extension to quickly save the current page.",
       "q2": "How to use tags?",
       "a2": "When creating or editing a bookmark, you can add tags to it. Click on tags in the sidebar to filter corresponding bookmarks.",
-      "q3": "How to import browser bookmarks?",
-      "a3": "Go to 'General Settings' → 'Data' tab, select 'Import Data', and upload the HTML bookmark file exported from your browser.",
-      "q4": "How to share my bookmarks?",
-      "a4": "Go to 'General Settings' → 'Share' tab, enable public sharing, and the system will generate a public link for others to access.",
-      "q5": "How to get an API Key?",
-      "a5": "Go to 'General Settings' → 'API' tab, click 'Create' button to generate a new API Key for browser extension or third-party apps.",
-      "q6": "How to install the browser extension?",
-      "a6": "Visit the 'Browser' page, download the extension file for your browser, and follow the instructions to install.",
-      "q7": "How to switch themes?",
-      "a7": "Go to 'General Settings' → 'Basic' tab, choose light, dark, or system theme.",
-      "q8": "Is my data secure?",
-      "a8": "All data is encrypted and stored in Cloudflare D1 database, using JWT for authentication to ensure data security."
+      "q3": "How to share my bookmarks?",
+      "a3": "Go to 'General Settings' → 'Share' tab, enable public sharing, and the system will generate a public link for others to access.",
+      "q4": "How to get an API Key?",
+      "a4": "Go to 'General Settings' → 'API' tab, click 'Create' button to generate a new API Key for browser extension or third-party apps.",
+      "q5": "How to install the browser extension?",
+      "a5": "Visit the 'Browser' page, download the extension file for your browser, and follow the instructions to install.",
+      "q6": "How to switch themes?",
+      "a6": "Go to 'General Settings' → 'Basic' tab, choose light, dark, or system theme.",
+      "q7": "Is my data secure?",
+      "a7": "All data is encrypted and stored in Cloudflare D1 database, using JWT for authentication to ensure data security."
     },
     "contact": {
       "title": "Need More Help?",

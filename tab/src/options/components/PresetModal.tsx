@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useScrollLock } from '@/lib/hooks/useScrollLock';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
 
 interface PresetModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export function PresetModal({
       // 聚焦输入框
       setTimeout(() => {
         inputRef.current?.focus();
-      }, 100);
+      }, TIMEOUTS.VERY_SHORT);
     } else {
       setIsVisible(false);
     }
@@ -64,12 +65,12 @@ export function PresetModal({
 
   const handleClose = () => {
     setIsVisible(false);
-    setTimeout(onClose, 150);
+    setTimeout(onClose, TIMEOUTS.ANIMATION);
   };
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm transition-opacity duration-150 ${
+      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--tab-options-modal-overlay)] px-4 backdrop-blur-sm transition-opacity duration-150 ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
       style={{ margin: 0 }}
