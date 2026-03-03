@@ -199,15 +199,22 @@ export const onRequestPost: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[]
     try {
       const body = (await context.request.json()) as CreateBookmarkRequest
 
+      console.log('[Bookmarks POST] Request body keys:', Object.keys(body))
+      console.log('[Bookmarks POST] Has bookmarks array:', !!body.bookmarks)
+      console.log('[Bookmarks POST] Bookmarks length:', body.bookmarks?.length)
+
       // 检测是否为批量创建请求
       if (body.bookmarks && Array.isArray(body.bookmarks)) {
+        console.log('[Bookmarks POST] Routing to batch handler')
         // 批量创建逻辑
         const { batchCreateBookmarks } = await import('./batch-handler')
         return await batchCreateBookmarks(context, userId, body.bookmarks)
       }
 
+      console.log('[Bookmarks POST] Processing single bookmark')
       // 单个书签创建逻辑
       if (!body.title || !body.url) {
+        console.log('[Bookmarks POST] Missing title or URL')
         return badRequest('Title and URL are required')
       }
 

@@ -44,14 +44,29 @@ export async function batchCreateBookmarks(
   userId: string,
   bookmarks: BatchCreateBookmarkItem[]
 ): Promise<Response> {
+  console.log('[Batch Handler] Starting batch create')
+  console.log('[Batch Handler] User ID:', userId)
+  console.log('[Batch Handler] Bookmarks count:', bookmarks?.length)
+  
   try {
     if (!bookmarks || bookmarks.length === 0) {
+      console.log('[Batch Handler] Empty bookmarks array')
       return badRequest('bookmarks array cannot be empty')
     }
 
     if (bookmarks.length > 100) {
+      console.log('[Batch Handler] Too many bookmarks:', bookmarks.length)
       return badRequest('Cannot create more than 100 bookmarks at once')
     }
+
+    console.log('[Batch Handler] Starting processing...')
+
+    if (bookmarks.length > 100) {
+      console.log('[Batch Handler] Too many bookmarks:', bookmarks.length)
+      return badRequest('Cannot create more than 100 bookmarks at once')
+    }
+
+    console.log('[Batch Handler] Starting processing...')
 
     const result: BatchCreateResult = {
       success: 0,
