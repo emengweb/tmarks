@@ -45,7 +45,13 @@ export function AIOrganizeStep({
   const { state, config, setters } = useAIOrganizeState(urls.length)
 
   // 进度持久化
-  const { clearProgress } = useProgressPersistence(
+  const { 
+    clearProgress, 
+    showRestorePrompt, 
+    savedData, 
+    handleRestore, 
+    handleIgnore 
+  } = useProgressPersistence(
     urls,
     state,
     config,
@@ -59,7 +65,7 @@ export function AIOrganizeStep({
       if (data.options) {
         setters.setConcurrency(data.options.concurrency || 2)
         setters.setBatchMode(data.options.batchMode || 'single')
-        setters.setBatchSize(data.options.batchSize || 5)
+        setters.setBatchSize(data.options.batchSize || 20)
         setters.setUseCustomStyle(data.options.useCustomStyle || false)
         setters.setCustomStyle(data.options.customStyle || '')
         setters.setTitleLength(data.options.titleLength || 'medium')
@@ -104,6 +110,34 @@ export function AIOrganizeStep({
 
   return (
     <div className="space-y-6" role="region" aria-label="AI 批量整理">
+      {/* 恢复进度提示 */}
+      {showRestorePrompt && savedData && (
+        <div className="p-4 bg-[var(--tab-message-info-bg)] rounded-lg border border-[var(--tab-message-info-border)] flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-sm text-[var(--tab-options-text)] font-medium mb-1">
+              发现未完成的 AI 整理任务
+            </p>
+            <p className="text-xs text-[var(--tab-options-text-muted)]">
+              已完成 {savedData.bookmarks.length}/{savedData.urls.length} 个书签，是否继续？
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRestore}
+              className="px-3 py-1.5 text-xs bg-[var(--tab-options-button-primary-bg)] text-white rounded-lg hover:opacity-90 transition-opacity"
+            >
+              继续
+            </button>
+            <button
+              onClick={handleIgnore}
+              className="px-3 py-1.5 text-xs bg-[var(--tab-options-card-bg)] text-[var(--tab-options-text)] border border-[var(--tab-options-button-border)] rounded-lg hover:bg-[var(--tab-options-button-border)] transition-colors"
+            >
+              忽略
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 配置区 */}
       {state.status === 'idle' && (
         <AIOrganizeConfig
@@ -112,6 +146,8 @@ export function AIOrganizeStep({
           setBatchMode={setters.setBatchMode}
           batchSize={config.batchSize}
           setBatchSize={setters.setBatchSize}
+          concurrency={config.concurrency}
+          setConcurrency={setters.setConcurrency}
           titleLength={config.titleLength}
           setTitleLength={setters.setTitleLength}
           descriptionDetail={config.descriptionDetail}
@@ -171,12 +207,6 @@ export function AIOrganizeStep({
             bookmarks={state.realtimeBookmarks}
             mode={mode}
           />
-          <div className="p-3 bg-[var(--tab-message-info-bg)] rounded-lg border border-[var(--tab-message-info-border)]">
-            <p className="text-xs text-[var(--tab-message-info-icon)]">
-              💡 快捷键：<kbd className="px-1.5 py-0.5 bg-[var(--tab-options-card-bg)] rounded border border-[var(--tab-options-button-border)]">Ctrl+P</kbd> 暂停/恢复，
-              <kbd className="px-1.5 py-0.5 bg-[var(--tab-options-card-bg)] rounded border border-[var(--tab-options-button-border)] ml-1">Esc</kbd> 停止
-            </p>
-          </div>
         </div>
       )}
 

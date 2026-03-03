@@ -53,7 +53,7 @@ export function useAIOrganizeState(urlsLength: number) {
   // 配置状态
   const [concurrency, setConcurrency] = useState(2)
   const [batchMode, setBatchMode] = useState<'single' | 'batch'>('single')
-  const [batchSize, setBatchSize] = useState(5)
+  const [batchSize, setBatchSize] = useState(20)
   const [useCustomStyle, setUseCustomStyle] = useState(false)
   const [customStyle, setCustomStyle] = useState('')
   const [predefinedFolders, setPredefinedFolders] = useState<string[]>([])

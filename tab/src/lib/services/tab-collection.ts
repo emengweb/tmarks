@@ -246,7 +246,7 @@ async function saveTabGroupLocally(input: TabGroupInput): Promise<number> {
     createdAt: now,
   }));
 
-  await db.tabGroupItems.bulkAdd(items);
+  await db.tabGroupItems.bulkPut(items);
 
   return groupId as number;
 }

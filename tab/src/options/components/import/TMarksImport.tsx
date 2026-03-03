@@ -29,6 +29,9 @@ export function TMarksImport({ formData, setSuccessMessage, setError }: TMarksIm
   const { existingTags } = useTMarksData()
   const tmarksImport = useTMarksImport(formData)
 
+  // HTML 格式必须启用 AI
+  const isAiRequired = importState.selectedFormat === 'html'
+
   const handleStartImport = () => {
     const uploadData = {
       format: importState.selectedFormat,
@@ -106,7 +109,7 @@ export function TMarksImport({ formData, setSuccessMessage, setError }: TMarksIm
           normalizeProgress={importState.normalizeProgress}
           enableAiOrganize={importState.enableAiOrganize}
           setEnableAiOrganize={importState.setEnableAiOrganize}
-          isAiRequired={false}
+          isAiRequired={isAiRequired}
           options={importState.importOptions}
           setOptions={importState.setImportOptions}
           onFileSelect={importState.setSelectedFile}

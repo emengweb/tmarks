@@ -53,6 +53,7 @@ export function TMarksConfigSection({ formData, setFormData }: TMarksConfigSecti
               <li>• {t('options_tmarks_info_2')}</li>
               <li>• {t('options_tmarks_info_3')}</li>
               <li>• {t('options_tmarks_info_4')}<code className="px-1 bg-[var(--tab-options-pill-bg)] rounded">https://tmarks.669696.xyz</code></li>
+              <li>• QQ 交流群：<code className="px-1 bg-[var(--tab-options-pill-bg)] rounded">1090555987</code></li>
             </ul>
           </div>
           </div>

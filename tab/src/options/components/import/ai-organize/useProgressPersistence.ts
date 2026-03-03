@@ -2,7 +2,7 @@
  * 进度持久化 Hook
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { AIOrganizeState, AIOrganizeConfig, ProcessStatus } from './useAIOrganizeState'
 import type { EditableBookmark } from '../EditableBookmarkTable'
 import { logger } from '@/lib/utils/logger'
@@ -26,6 +26,8 @@ export function useProgressPersistence(
   config: AIOrganizeConfig,
   onRestore: (data: ProgressData) => void
 ) {
+  const [savedData, setSavedData] = useState<ProgressData | null>(null)
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false)
   // 保存进度
   const saveProgress = () => {
     const progressData: ProgressData = {
@@ -67,20 +69,30 @@ export function useProgressPersistence(
         return
       }
 
-      const shouldRestore = window.confirm(
-        `发现未完成的 AI 整理任务（${data.bookmarks.length}/${data.urls.length} 已完成）\n是否继续？`
-      )
-
-      if (shouldRestore) {
-        onRestore(data)
-      } else {
-        localStorage.removeItem(STORAGE_KEY)
-      }
+      // 显示非阻拦式提示
+      setSavedData(data)
+      setShowRestorePrompt(true)
     } catch (error) {
       logger.error('Failed to restore AI organize progress', error)
       localStorage.removeItem(STORAGE_KEY)
     }
   }, [])
+
+  // 处理恢复
+  const handleRestore = () => {
+    if (savedData) {
+      onRestore(savedData)
+      setShowRestorePrompt(false)
+      setSavedData(null)
+    }
+  }
+
+  // 处理忽略
+  const handleIgnore = () => {
+    localStorage.removeItem(STORAGE_KEY)
+    setShowRestorePrompt(false)
+    setSavedData(null)
+  }
 
   // 处理中自动保存
   useEffect(() => {
@@ -91,6 +103,10 @@ export function useProgressPersistence(
 
   return {
     saveProgress,
-    clearProgress: () => localStorage.removeItem(STORAGE_KEY)
+    clearProgress: () => localStorage.removeItem(STORAGE_KEY),
+    showRestorePrompt,
+    savedData,
+    handleRestore,
+    handleIgnore
   }
 }

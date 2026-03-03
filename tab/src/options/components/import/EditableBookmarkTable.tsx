@@ -37,26 +37,56 @@ export function EditableBookmarkTable({
   onBookmarksChange
 }: EditableBookmarkTableProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 50
+  const [currentGroupIndex, setCurrentGroupIndex] = useState(0)
+
+  // 按分组组织书签（NewTab 模式）
+  const groupedBookmarks = useMemo(() => {
+    if (mode !== 'newtab') {
+      return [{ name: '全部', bookmarks }]
+    }
+    
+    const groups = new Map<string, EditableBookmark[]>()
+    bookmarks.forEach(b => {
+      const folder = b.folder || '未分类'
+      if (!groups.has(folder)) {
+        groups.set(folder, [])
+      }
+      groups.get(folder)!.push(b)
+    })
+    
+    return Array.from(groups.entries()).map(([name, bookmarks]) => ({
+      name,
+      bookmarks
+    }))
+  }, [bookmarks, mode])
+
+  const currentGroup = groupedBookmarks[currentGroupIndex] || groupedBookmarks[0]
 
   // 搜索过滤
   const filteredBookmarks = useMemo(() => {
-    if (!searchQuery) return bookmarks
+    if (!searchQuery) return currentGroup.bookmarks
     const query = searchQuery.toLowerCase()
-    return bookmarks.filter(b => 
+    return currentGroup.bookmarks.filter(b => 
       b.url.toLowerCase().includes(query) ||
       b.title.toLowerCase().includes(query) ||
       b.tags.some(t => t.name.toLowerCase().includes(query))
     )
-  }, [bookmarks, searchQuery])
+  }, [currentGroup.bookmarks, searchQuery])
 
-  // 分页
+  // 分页（每组内分页）
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 50
   const totalPages = Math.ceil(filteredBookmarks.length / pageSize)
   const paginatedBookmarks = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return filteredBookmarks.slice(start, start + pageSize)
   }, [filteredBookmarks, currentPage, pageSize])
+
+  // 切换分组时重置页码
+  const handleGroupChange = (index: number) => {
+    setCurrentGroupIndex(index)
+    setCurrentPage(1)
+  }
 
   // 统计
   const stats = useMemo(() => {
@@ -81,7 +111,7 @@ export function EditableBookmarkTable({
     onBookmarksChange(newBookmarks)
   }
 
-  // 全选/反选
+  // 全选/反选（当前分组）
   const handleToggleAll = () => {
     const allSelected = paginatedBookmarks.every(b => b.isSelected)
     const newBookmarks = bookmarks.map(b => {
@@ -127,6 +157,28 @@ export function EditableBookmarkTable({
 
   return (
     <div className="space-y-4">
+      {/* 分组导航（NewTab 模式） */}
+      {mode === 'newtab' && groupedBookmarks.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          {groupedBookmarks.map((group, index) => (
+            <button
+              key={index}
+              onClick={() => handleGroupChange(index)}
+              className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
+                currentGroupIndex === index
+                  ? 'bg-[var(--tab-options-button-primary-bg)] text-[var(--tab-options-button-primary-text)] shadow-sm'
+                  : 'bg-[var(--tab-options-card-bg)] text-[var(--tab-options-text)] border border-[var(--tab-options-button-border)] hover:border-[var(--tab-options-button-primary-bg)]'
+              }`}
+            >
+              {group.name}
+              <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-white/20">
+                {group.bookmarks.length}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <BookmarkTableHeader
         stats={stats}
         searchQuery={searchQuery}

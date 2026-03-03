@@ -1,12 +1,33 @@
 import { t } from '@/lib/i18n';
+import { useEffect } from 'react';
+import { TIMEOUTS } from '@/lib/constants/timeouts';
 
 interface ErrorMessageProps {
   message: string;
   onDismiss?: () => void;
   onRetry?: () => void;
+  autoDismiss?: boolean;
+  duration?: number;
 }
 
-export function ErrorMessage({ message, onDismiss, onRetry }: ErrorMessageProps) {
+export function ErrorMessage({ 
+  message, 
+  onDismiss, 
+  onRetry,
+  autoDismiss = true,
+  duration = TIMEOUTS.NOTIFICATION
+}: ErrorMessageProps) {
+  // 自动消失
+  useEffect(() => {
+    if (autoDismiss && onDismiss) {
+      const timer = setTimeout(() => {
+        onDismiss();
+      }, duration);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [autoDismiss, onDismiss, duration]);
+
   return (
     <div className="bg-[color:var(--tab-message-danger-bg)] border border-[color:var(--tab-message-danger-border)] rounded-lg p-3 shadow-lg animate-in slide-in-from-top-5 fade-in duration-300 text-[var(--tab-message-danger-icon)]">
       <div className="flex items-start gap-3">

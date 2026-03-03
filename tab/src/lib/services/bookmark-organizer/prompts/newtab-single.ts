@@ -6,9 +6,8 @@ import type { OrganizeOptions } from '../types'
 
 export function buildNewTabPrompt(url: string, options: OrganizeOptions): string {
   const existingFolders = options.existingFolders || []
-  const maxGroups = options.maxImportGroups || 7
+  const maxTotalGroups = 10 // 总上限 10
   const tagStyle = options.tagStyle
-  const isPredefinedMode = existingFolders.length > 0 && existingFolders.length <= maxGroups
   
   const titleLengthMap = {
     short: '5-15字',
@@ -64,13 +63,12 @@ export function buildNewTabPrompt(url: string, options: OrganizeOptions): string
 - 避免过于宽泛（如"网站"）或过于细分（如"React组件库"）
 - 通用工具类网站可独立成组（如"工具箱"）`
 
-  const folderLimit = isPredefinedMode
-    ? `\n\n🚫 严格约束：必须从上述 ${existingFolders.length} 个分组中选择一个，严禁创建新分组！`
-    : existingFolders.length >= maxGroups
-    ? `\n\n🚫 严格约束：已达到 ${maxGroups} 个文件夹上限，必须从已有文件夹中选择一个，严禁创建新文件夹！违反此规则将导致导入失败！`
+  const allowedNew = Math.max(0, maxTotalGroups - existingFolders.length)
+  const folderLimit = existingFolders.length >= maxTotalGroups
+    ? `\n\n🚫 严格约束：已达到 ${maxTotalGroups} 个文件夹上限，必须从已有文件夹中选择一个，严禁创建新文件夹！`
     : existingFolders.length > 0
-    ? `\n\n⚠️ 严格约束：优先使用已有文件夹，总文件夹数量不得超过 ${maxGroups} 个（当前已有 ${existingFolders.length} 个）`
-    : `\n\n⚠️ 严格约束：总文件夹数量不得超过 ${maxGroups} 个，建议创建通用分类，避免过于细分`
+    ? `\n\n⚠️ 约束：优先使用已有文件夹，总文件夹数量不得超过 ${maxTotalGroups} 个（当前已有 ${existingFolders.length} 个，最多新建 ${allowedNew} 个）`
+    : `\n\n⚠️ 约束：总文件夹数量不得超过 ${maxTotalGroups} 个，建议创建通用分类，避免过于细分`
   
   const styleGuide = tagStyle 
     ? `\n\n用户分类偏好：\n${tagStyle}` 
@@ -87,7 +85,7 @@ ${folderGuide}${folderLimit}${styleGuide}
 3. 推荐一个合适的文件夹名称（${languagePreference}）
 
 文件夹推荐规则：
-1. **必须从可用分组中选择一个**${isPredefinedMode ? '，严禁创建新分组' : '，优先使用已有分组'}
+1. **优先使用已有分组**${existingFolders.length > 0 ? '，避免创建近义分组' : ''}
 2. ${folderLengthRule}
 3. 按使用场景分类，而非网站类型（如"前端开发"优于"技术网站"）
 4. 确保分类具有通用性，可容纳同类网站（如"开发工具"可包含 github/gitlab/gitee）

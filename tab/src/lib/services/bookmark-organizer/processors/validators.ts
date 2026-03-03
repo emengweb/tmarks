@@ -101,26 +101,32 @@ function validateTagCount(tags: string[], min: number, max: number): string[] {
 }
 
 /**
- * 验证单个文件夹
+ * 验证单个文件夹（方案 A：渐进式上限）
  */
 function validateFolder(folder: string, options: OrganizeOptions): string {
   const existingFolders = options.existingFolders || []
-  const maxGroups = options.maxImportGroups || 7
+  const maxTotalGroups = 10 // 总上限调整为 10
   
-  // 如果已有分组数量达到上限，且当前文件夹不在已有分组中
-  if (existingFolders.length >= maxGroups && !existingFolders.includes(folder)) {
+  // 如果是已有文件夹，直接返回
+  if (existingFolders.includes(folder)) {
+    return folder
+  }
+  
+  // 如果已达到总上限，使用第一个已有文件夹或"其他"
+  if (existingFolders.length >= maxTotalGroups) {
     return existingFolders.length > 0 ? existingFolders[0] : '其他'
   }
   
+  // 允许创建新文件夹
   return folder
 }
 
 /**
- * 验证并限制批量文件夹数量
+ * 验证并限制批量文件夹数量（方案 A：渐进式上限）
  */
 function validateAndLimitFolders(parsed: ParsedBookmarkData[], options: OrganizeOptions) {
   const existingFolders = options.existingFolders || []
-  const maxGroups = options.maxImportGroups || 7
+  const maxTotalGroups = 10 // 总上限调整为 10
   const newFolders = new Set<string>()
   
   // 收集所有新文件夹
@@ -131,16 +137,35 @@ function validateAndLimitFolders(parsed: ParsedBookmarkData[], options: Organize
   })
   
   // 计算允许的新文件夹数量
-  const allowedNewCount = Math.max(0, maxGroups - existingFolders.length)
-  const allowedNewFolders = Array.from(newFolders).slice(0, allowedNewCount)
-  const allowedFolderSet = new Set([...existingFolders, ...allowedNewFolders])
+  const allowedNewCount = Math.max(0, maxTotalGroups - existingFolders.length)
   
-  // 将超出限制的文件夹重新分配
+  // 如果新文件夹数量在允许范围内，直接返回
+  if (newFolders.size <= allowedNewCount) {
+    return
+  }
+  
+  // 超出限制：按出现频率排序，保留最常用的
+  const folderCounts = new Map<string, number>()
+  parsed.forEach(item => {
+    if (item.folder && !existingFolders.includes(item.folder)) {
+      folderCounts.set(item.folder, (folderCounts.get(item.folder) || 0) + 1)
+    }
+  })
+  
+  const sortedNewFolders = Array.from(folderCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, allowedNewCount)
+    .map(([folder]) => folder)
+  
+  const allowedFolderSet = new Set([...existingFolders, ...sortedNewFolders])
+  
+  // 将超出限制的文件夹重新分配到最相似的允许文件夹
   parsed.forEach(item => {
     if (item.folder && !allowedFolderSet.has(item.folder)) {
+      // 优先分配到已有文件夹
       item.folder = existingFolders.length > 0 
         ? existingFolders[0] 
-        : (allowedNewFolders.length > 0 ? allowedNewFolders[0] : '其他')
+        : (sortedNewFolders.length > 0 ? sortedNewFolders[0] : '其他')
     }
   })
 }

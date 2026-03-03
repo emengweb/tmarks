@@ -46,6 +46,27 @@ interface BatchCreateResult {
 }
 
 /**
+ * GET /api/tab/bookmarks/batch
+ * 不支持 GET 方法
+ */
+export const onRequestGet: PagesFunction<Env, RouteParams>[] = [
+  async () => {
+    return new Response(JSON.stringify({
+      error: {
+        code: 'METHOD_NOT_ALLOWED',
+        message: 'GET method is not supported for batch operations. Use POST instead.'
+      }
+    }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Allow': 'POST'
+      }
+    })
+  }
+]
+
+/**
  * POST /api/tab/bookmarks/batch
  * 批量创建书签
  */

@@ -33,8 +33,8 @@ export function TagCountSection({
             <input
               id="tag-count-min"
               type="range"
-              min="1"
-              max="3"
+              min="5"
+              max="10"
               value={tagCountMin}
               onChange={(e) => {
                 const val = Number(e.target.value);
@@ -43,8 +43,8 @@ export function TagCountSection({
               }}
               className="w-full"
               aria-label="设置最少标签数量"
-              aria-valuemin={1}
-              aria-valuemax={3}
+              aria-valuemin={5}
+              aria-valuemax={10}
               aria-valuenow={tagCountMin}
             />
           </div>
@@ -56,7 +56,7 @@ export function TagCountSection({
             <input
               id="tag-count-max"
               type="range"
-              min="1"
+              min="5"
               max="10"
               value={tagCountMax}
               onChange={(e) => {
@@ -66,7 +66,7 @@ export function TagCountSection({
               }}
               className="w-full"
               aria-label="设置最多标签数量"
-              aria-valuemin={1}
+              aria-valuemin={5}
               aria-valuemax={10}
               aria-valuenow={tagCountMax}
             />

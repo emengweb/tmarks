@@ -15,7 +15,6 @@ export interface OrganizeOptions {
   mode?: 'tmarks' | 'newtab' // 整理模式：tmarks=标签，newtab=文件夹
   tagStyle?: string // 用户自定义标签风格（TMarks）
   existingFolders?: string[] // 已有文件夹列表（NewTab）
-  maxImportGroups?: number // AI 批量导入最多创建的分组数量（NewTab），默认 7
   temperature?: number // AI 创造性，默认 0.7
   batchDelay?: number // 批处理延迟（毫秒），默认 500
   // 新增：用户设置
@@ -33,6 +32,7 @@ export interface SuggestedGroup {
   name: string
   description: string
   count: number // 预计包含的 URL 数量
+  urls?: string[] // 该分组包含的 URL 列表（可选）
 }
 
 export interface OrganizeProgress {

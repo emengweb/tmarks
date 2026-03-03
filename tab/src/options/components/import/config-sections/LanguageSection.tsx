@@ -27,18 +27,18 @@ export function LanguageSection({ language, setLanguage }: LanguageSectionProps)
           <button
             key={option}
             onClick={() => setLanguage(option)}
-            className={`p-3 rounded-lg border-2 transition-all text-left ${
-              language === option
-                ? 'border-[var(--tab-popup-section-purple-badge-bg)] bg-[var(--tab-popup-section-purple-badge-bg)]/10'
-                : 'border-[var(--tab-options-button-border)] hover:border-[var(--tab-popup-section-purple-badge-bg)]/50'
-            }`}
             role="radio"
             aria-checked={language === option}
+            className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
+              language === option
+                ? 'border-[var(--tab-options-button-primary-bg)] bg-[var(--tab-options-button-primary-bg)]/10 shadow-sm'
+                : 'border-[var(--tab-options-button-border)] bg-[var(--tab-options-card-bg)] hover:border-[var(--tab-options-button-primary-bg)]/50'
+            }`}
           >
-            <div className="text-sm font-medium text-[var(--tab-options-title)]">
+            <div className={`text-sm font-medium ${language === option ? 'text-[var(--tab-options-title)]' : 'text-[var(--tab-options-text)]'}`}>
               {languageOptions[option].label}
             </div>
-            <div className="text-xs text-[var(--tab-options-text)] mt-1">
+            <div className="text-xs text-[var(--tab-options-text-muted)] mt-1">
               {languageOptions[option].desc}
             </div>
           </button>

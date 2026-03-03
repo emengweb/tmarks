@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react'
-import { Plus, Trash2, Edit2, Check, X, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Edit2, Check, X, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import type { SuggestedGroup } from '@/lib/services/bookmark-organizer'
 
 interface GroupSuggestionStepProps {
@@ -23,6 +23,7 @@ export function GroupSuggestionStep({
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set())
 
   const handleEdit = (index: number) => {
     setEditingIndex(index)
@@ -69,6 +70,16 @@ export function GroupSuggestionStep({
     if (groupNames.length > 0) {
       onConfirm(groupNames)
     }
+  }
+
+  const toggleExpand = (index: number) => {
+    const newExpanded = new Set(expandedGroups)
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index)
+    } else {
+      newExpanded.add(index)
+    }
+    setExpandedGroups(newExpanded)
   }
 
   return (
@@ -132,40 +143,75 @@ export function GroupSuggestionStep({
               </div>
             ) : (
               // 显示模式
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-base font-medium text-[var(--tab-options-title)]">
-                      {group.name}
-                    </h4>
-                    {group.count > 0 && (
-                      <span className="px-2 py-0.5 bg-[var(--tab-popup-section-purple-badge-bg)] text-[var(--tab-popup-section-purple-badge-text)] rounded text-xs">
-                        约 {group.count} 个
-                      </span>
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-base font-medium text-[var(--tab-options-title)]">
+                        {group.name}
+                      </h4>
+                      {group.count > 0 && (
+                        <span className="px-2 py-0.5 bg-[var(--tab-popup-section-purple-badge-bg)] text-[var(--tab-popup-section-purple-badge-text)] rounded text-xs">
+                          约 {group.count} 个
+                        </span>
+                      )}
+                    </div>
+                    {group.description && (
+                      <p className="text-sm text-[var(--tab-options-text)] mt-1">
+                        {group.description}
+                      </p>
                     )}
                   </div>
-                  {group.description && (
-                    <p className="text-sm text-[var(--tab-options-text)] mt-1">
-                      {group.description}
+                  <div className="flex gap-2">
+                    {group.urls && group.urls.length > 0 && (
+                      <button
+                        onClick={() => toggleExpand(index)}
+                        className="p-2 text-[var(--tab-options-text)] hover:text-[var(--tab-options-button-primary-bg)] hover:bg-[var(--tab-options-button-hover-bg)] rounded-lg transition-colors"
+                        title={expandedGroups.has(index) ? '收起' : '展开'}
+                      >
+                        {expandedGroups.has(index) ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleEdit(index)}
+                      className="p-2 text-[var(--tab-options-text)] hover:text-[var(--tab-options-button-primary-bg)] hover:bg-[var(--tab-options-button-hover-bg)] rounded-lg transition-colors"
+                      title="编辑"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(index)}
+                      className="p-2 text-[var(--tab-options-text)] hover:text-red-500 hover:bg-[var(--tab-options-button-hover-bg)] rounded-lg transition-colors"
+                      title="删除"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* 展开显示网址列表 */}
+                {expandedGroups.has(index) && group.urls && group.urls.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-[var(--tab-options-button-border)]">
+                    <p className="text-xs text-[var(--tab-options-text-muted)] mb-2">
+                      包含的网址（{group.urls.length} 个）：
                     </p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(index)}
-                    className="p-2 text-[var(--tab-options-text)] hover:text-[var(--tab-options-button-primary-bg)] hover:bg-[var(--tab-options-button-hover-bg)] rounded-lg transition-colors"
-                    title="编辑"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(index)}
-                    className="p-2 text-[var(--tab-options-text)] hover:text-red-500 hover:bg-[var(--tab-options-button-hover-bg)] rounded-lg transition-colors"
-                    title="删除"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {group.urls.map((url, urlIndex) => (
+                        <div
+                          key={urlIndex}
+                          className="text-xs text-[var(--tab-options-text)] px-2 py-1 bg-[var(--tab-options-input-bg)] rounded truncate"
+                          title={url}
+                        >
+                          {url}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

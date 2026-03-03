@@ -13,7 +13,6 @@ import { requireApiKeyAuth, ApiKeyAuthContext } from '../../middleware/api-key-a
 type BookmarkStats = {
   total_bookmarks: number | null
   pinned_bookmarks: number | null
-  archived_bookmarks: number | null
 }
 
 export const onRequestGet: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[] = [
@@ -37,8 +36,7 @@ export const onRequestGet: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[] 
       const stats = await context.env.DB.prepare(
         `SELECT
           COUNT(CASE WHEN deleted_at IS NULL THEN 1 END) as total_bookmarks,
-          COUNT(CASE WHEN deleted_at IS NULL AND is_pinned = 1 THEN 1 END) as pinned_bookmarks,
-          COUNT(CASE WHEN deleted_at IS NULL AND is_archived = 1 THEN 1 END) as archived_bookmarks
+          COUNT(CASE WHEN deleted_at IS NULL AND is_pinned = 1 THEN 1 END) as pinned_bookmarks
         FROM bookmarks
         WHERE user_id = ?`
       )
@@ -57,7 +55,6 @@ export const onRequestGet: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[] 
           stats: {
             total_bookmarks: stats?.total_bookmarks ?? 0,
             pinned_bookmarks: stats?.pinned_bookmarks ?? 0,
-            archived_bookmarks: stats?.archived_bookmarks ?? 0,
             total_tags: tagCount?.count || 0,
           },
         },

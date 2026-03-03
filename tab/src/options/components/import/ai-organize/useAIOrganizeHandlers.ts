@@ -3,7 +3,6 @@
  */
 
 import { bookmarkOrganizer } from '@/lib/services/bookmark-organizer'
-import { StorageService } from '@/lib/utils/storage'
 import { logger } from '@/lib/utils/logger'
 import type { AIProvider } from '@/types'
 import type { AIOrganizeState, AIOrganizeConfig, ProcessStatus } from './useAIOrganizeState'
@@ -50,24 +49,25 @@ export function useAIOrganizeHandlers(options: HandlerOptions) {
     setIsPaused
   } = options
 
-  // 开始处理
+  // 开始处理（方案 B：始终显示分组预览）
   const handleStart = async () => {
-    // NewTab 模式且没有预定义分组：先推荐分组
-    if (mode === 'newtab' && config.predefinedFolders.length === 0) {
+    // NewTab 模式：始终先推荐分组让用户确认
+    if (mode === 'newtab') {
       setStatus('suggesting')
       try {
-        const storageConfig = await StorageService.loadConfig()
-        const maxImportGroups = storageConfig.aiConfig.maxImportGroups || 7
+        // 合并已有分组和预定义分组作为 AI 参考
+        const referenceFolders = config.predefinedFolders.length > 0
+          ? [...new Set([...existingFolders, ...config.predefinedFolders])]
+          : existingFolders
         
         const groups = await bookmarkOrganizer.suggestGroups(urls, {
           provider,
           apiKey,
           model,
           apiUrl,
-          maxImportGroups,
           language: config.language,
           temperature: config.temperature,
-          existingFolders
+          existingFolders: referenceFolders
         })
         
         setSuggestedGroups(groups)
@@ -79,6 +79,7 @@ export function useAIOrganizeHandlers(options: HandlerOptions) {
       return
     }
     
+    // TMarks 模式：直接开始整理
     startOrganizing()
   }
 
@@ -95,10 +96,7 @@ export function useAIOrganizeHandlers(options: HandlerOptions) {
     setErrors([])
 
     try {
-      const storageConfig = await StorageService.loadConfig()
-      const maxImportGroups = storageConfig.aiConfig.maxImportGroups || 7
-      
-      const finalFolders = groups || (config.predefinedFolders.length > 0 ? config.predefinedFolders : existingFolders)
+      const finalFolders = groups || existingFolders
       
       const result = await bookmarkOrganizer.organizeUrls(
         urls,
@@ -120,8 +118,7 @@ export function useAIOrganizeHandlers(options: HandlerOptions) {
           tagCountMax: config.tagCountMax,
           language: config.language,
           batchMode: config.batchMode,
-          batchSize: config.batchSize,
-          maxImportGroups
+          batchSize: config.batchSize
         },
         (prog) => {
           setProgress(prog)

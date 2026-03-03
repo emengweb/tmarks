@@ -27,17 +27,6 @@ export function ImportOptionsSection({ options, setOptions }: ImportOptionsSecti
             {chrome.i18n.getMessage('import_skip_duplicates')}
           </span>
         </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={options.includeThumbnail}
-            onChange={(e) => setOptions({ ...options, includeThumbnail: e.target.checked })}
-            className="w-4 h-4"
-          />
-          <span className="text-sm text-[var(--tab-options-text)]">
-            {chrome.i18n.getMessage('import_include_thumbnail')}
-          </span>
-        </label>
       </div>
     </div>
   )

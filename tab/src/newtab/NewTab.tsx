@@ -152,7 +152,7 @@ export function NewTab() {
       {/* 左侧分组侧边栏 */}
       <GroupSidebar onOpenSettings={() => setShowSettings(true)} />
 
-      {/* 右侧分组导航栏 - 显示第 11-20 个分组 */}
+      {/* 右侧功能导航栏 - 为未来多功能扩展预留 */}
       <RightSidebar />
 
       {/* 底部 Dock 栏 - 置顶书签 */}

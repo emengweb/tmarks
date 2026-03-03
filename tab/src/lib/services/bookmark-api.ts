@@ -147,18 +147,19 @@ export class BookmarkAPIClient {
   }
 
   /**
-   * Get bookmarks with pagination
+   * Get bookmarks with pagination (cursor-based)
    */
-  async getBookmarks(page: number = 1, limit: number = 100): Promise<{
+  async getBookmarks(cursor?: string, limit: number = 100): Promise<{
     bookmarks: Bookmark[];
     hasMore: boolean;
+    nextCursor?: string;
   }> {
     const client = await this.ensureClient();
 
     try {
       const response = await client.bookmarks.getBookmarks({
         page_size: limit,
-        page_cursor: page > 1 ? `page_${page}` : undefined
+        page_cursor: cursor
       });
 
       if (!response?.data?.bookmarks || !Array.isArray(response.data.bookmarks) || !response.data.bookmarks.length) {
@@ -177,7 +178,8 @@ export class BookmarkAPIClient {
 
       return {
         bookmarks,
-        hasMore: response.data.meta?.has_more ?? false
+        hasMore: response.data.meta?.has_more ?? false,
+        nextCursor: response.data.meta?.next_cursor ?? undefined
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

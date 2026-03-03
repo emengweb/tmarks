@@ -15,7 +15,6 @@ interface UpdateBookmarkRequest {
   tag_ids?: string[]  // 兼容旧版：标签 ID 数组
   tags?: string[]     // 新版：标签名称数组（推荐）
   is_pinned?: boolean
-  is_archived?: boolean
   is_public?: boolean
 }
 
@@ -76,11 +75,6 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
       if (body.is_pinned !== undefined) {
         updates.push('is_pinned = ?')
         values.push(body.is_pinned ? 1 : 0)
-      }
-
-      if (body.is_archived !== undefined) {
-        updates.push('is_archived = ?')
-        values.push(body.is_archived ? 1 : 0)
       }
 
       if (body.is_public !== undefined) {

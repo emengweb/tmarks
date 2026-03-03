@@ -23,7 +23,6 @@ interface CreateBookmarkRequest {
   tag_ids?: string[]  // 兼容旧版：标签 ID 数组
   tags?: string[]     // 新版：标签名称数组（推荐）
   is_pinned?: boolean
-  is_archived?: boolean
   is_public?: boolean
 }
 
@@ -41,11 +40,9 @@ export const onRequestGet: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[] 
     try {
       const keyword = url.searchParams.get('keyword')
       const tags = url.searchParams.get('tags')
-      const pageSize = parseInt(url.searchParams.get('page_size') || '30')
+      const pageSize = parseInt(url.searchParams.get('page_size') || '100')
       const pageCursor = url.searchParams.get('page_cursor')
       const sortBy = (url.searchParams.get('sort') as 'created' | 'updated' | 'pinned') || 'created'
-      const archivedParam = url.searchParams.get('archived')
-      const archived = archivedParam ? archivedParam === 'true' : undefined
       const pinnedParam = url.searchParams.get('pinned')
       const pinned = pinnedParam ? pinnedParam === 'true' : undefined
 
@@ -56,12 +53,6 @@ export const onRequestGet: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[] 
         WHERE b.user_id = ? AND b.deleted_at IS NULL
       `
       const params: SQLParam[] = [userId]
-
-      // 归档过滤
-      if (archived !== undefined) {
-        query += ` AND b.is_archived = ?`
-        params.push(archived ? 1 : 0)
-      }
 
       // 置顶过滤
       if (pinned !== undefined) {
@@ -116,6 +107,9 @@ export const onRequestGet: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[] 
       params.push(pageSize + 1)
 
       const { results } = await context.env.DB.prepare(query).bind(...params).all<BookmarkRow>()
+
+      // 调试日志：记录查询结果
+      console.log(`[Bookmarks API] User: ${userId}, Query returned: ${results.length} bookmarks, pageSize: ${pageSize}`)
 
       const hasMore = results.length > pageSize
       const bookmarks = hasMore ? results.slice(0, pageSize) : results
@@ -218,7 +212,6 @@ export const onRequestPost: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[]
       const now = new Date().toISOString()
       let bookmarkId: string
       const isPinned = body.is_pinned ? 1 : 0
-      const isArchived = body.is_archived ? 1 : 0
       const isPublic = body.is_public ? 1 : 0
 
       // 如果有封面图且配置了 R2 bucket，上传到 R2
@@ -297,7 +290,7 @@ export const onRequestPost: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[]
         await context.env.DB.prepare(
           `UPDATE bookmarks
            SET title = ?, description = ?, cover_image = ?, favicon = ?,
-               is_pinned = ?, is_archived = ?, is_public = ?,
+               is_pinned = ?, is_public = ?,
                deleted_at = NULL, updated_at = ?
            WHERE id = ?`
         )
@@ -307,7 +300,6 @@ export const onRequestPost: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[]
             coverImage,
             favicon,
             isPinned,
-            isArchived,
             isPublic,
             now,
             bookmarkId
@@ -321,8 +313,8 @@ export const onRequestPost: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[]
         // 创建新书签
         bookmarkId = generateUUID()
         await context.env.DB.prepare(
-          `INSERT INTO bookmarks (id, user_id, title, url, description, cover_image, cover_image_id, favicon, is_pinned, is_archived, is_public, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO bookmarks (id, user_id, title, url, description, cover_image, cover_image_id, favicon, is_pinned, is_public, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
           .bind(
             bookmarkId,
@@ -334,7 +326,6 @@ export const onRequestPost: PagesFunction<Env, RouteParams, ApiKeyAuthContext>[]
             coverImageId,
             favicon,
             isPinned,
-            isArchived,
             isPublic,
             now,
             now

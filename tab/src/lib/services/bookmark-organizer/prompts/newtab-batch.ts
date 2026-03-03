@@ -6,9 +6,8 @@ import type { OrganizeOptions } from '../types'
 
 export function buildNewTabBatchPrompt(urls: string[], options: OrganizeOptions): string {
   const existingFolders = options.existingFolders || []
-  const maxGroups = options.maxImportGroups || 7
+  const maxTotalGroups = 10 // 总上限 10
   const tagStyle = options.tagStyle
-  const isPredefinedMode = existingFolders.length > 0 && existingFolders.length <= maxGroups
   
   const titleLengthMap = {
     short: '5-15字',
@@ -47,13 +46,12 @@ export function buildNewTabBatchPrompt(urls: string[], options: OrganizeOptions)
   const urlList = urls.map((url, i) => `${i + 1}. ${url}`).join('\n')
   const folderGuide = existingFolders.length > 0
     ? `\n\n📁 可用分组（${existingFolders.length} 个）：\n${existingFolders.join('、')}`
-    : `\n\n💡 建议创建通用分类，避免过于细分（最多 ${maxGroups} 个一级文件夹）`
+    : `\n\n💡 建议创建通用分类，避免过于细分（系统上限 ${maxTotalGroups} 个）`
   
-  const folderLimit = isPredefinedMode
-    ? `\n\n🚫 严格约束：必须从上述 ${existingFolders.length} 个分组中选择，严禁创建新分组！`
-    : existingFolders.length >= maxGroups
-    ? `\n\n🚫 严格约束：已达到 ${maxGroups} 个文件夹上限，必须从已有文件夹中选择，严禁创建新文件夹！违反此规则将导致导入失败！`
-    : `\n\n⚠️ 严格约束：所有网址的文件夹总数不得超过 ${maxGroups} 个（当前已有 ${existingFolders.length} 个），超过此数量将导致导入失败！`
+  const allowedNew = Math.max(0, maxTotalGroups - existingFolders.length)
+  const folderLimit = existingFolders.length >= maxTotalGroups
+    ? `\n\n🚫 严格约束：已达到 ${maxTotalGroups} 个文件夹上限，必须从已有文件夹中选择，严禁创建新文件夹！`
+    : `\n\n⚠️ 约束：所有网址的文件夹总数不得超过 ${maxTotalGroups} 个（当前已有 ${existingFolders.length} 个，最多新建 ${allowedNew} 个）`
   
   const styleGuide = tagStyle 
     ? `\n\n用户分类风格偏好：\n${tagStyle}` 
@@ -73,11 +71,11 @@ ${folderGuide}${folderLimit}${styleGuide}
 ⚠️ 严格约束（批量处理特别注意）：
 - **统筹考虑所有 ${urls.length} 个网址，合理规划文件夹分配**
 - **相似网站必须归入同一文件夹**（如 github/gitlab → "开发工具"）
-- ${isPredefinedMode ? `**必须从上述 ${existingFolders.length} 个分组中选择，严禁创建新分组**` : `**新建文件夹总数不得超过 ${Math.max(0, maxGroups - existingFolders.length)} 个**`}
-- ${isPredefinedMode ? '选择最匹配的分组' : '优先使用已有文件夹，避免创建近义分类'}
+- ${existingFolders.length >= maxTotalGroups ? `**必须从已有 ${existingFolders.length} 个分组中选择，严禁创建新分组**` : `**新建文件夹总数不得超过 ${allowedNew} 个**`}
+- ${existingFolders.length > 0 ? '优先使用已有文件夹，避免创建近义分类' : ''}
 
 文件夹推荐规则：
-1. **${isPredefinedMode ? '必须从可用分组中选择' : '优先使用已有文件夹'}**，避免创建过多分类
+1. **${existingFolders.length > 0 ? '优先使用已有文件夹' : '创建通用分类'}**，避免创建过多分类
 2. ${folderLengthRule}
 3. 按使用场景分类，确保同类网站归为一组
 4. ${translationRule}

@@ -19,6 +19,8 @@ interface AIOrganizeConfigProps {
   setBatchMode: (value: 'single' | 'batch') => void
   batchSize: number
   setBatchSize: (value: number) => void
+  concurrency: number
+  setConcurrency: (value: number) => void
   titleLength: 'short' | 'medium' | 'long'
   setTitleLength: (value: 'short' | 'medium' | 'long') => void
   descriptionDetail: 'minimal' | 'short' | 'detailed'
@@ -47,6 +49,8 @@ export function AIOrganizeConfig({
   setBatchMode,
   batchSize,
   setBatchSize,
+  concurrency,
+  setConcurrency,
   titleLength,
   setTitleLength,
   descriptionDetail,
@@ -89,6 +93,8 @@ export function AIOrganizeConfig({
         setBatchMode={setBatchMode}
         batchSize={batchSize}
         setBatchSize={setBatchSize}
+        concurrency={concurrency}
+        setConcurrency={setConcurrency}
       />
 
       <TitleLengthSection

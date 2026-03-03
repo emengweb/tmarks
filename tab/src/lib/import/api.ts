@@ -12,7 +12,7 @@ const BATCH_SIZE = 50
  */
 export async function importToTMarks(
   bookmarks: ParsedBookmark[],
-  options: ImportOptions,
+  _options: ImportOptions,
   tmarksUrl: string,
   accessToken?: string
 ): Promise<ImportResult> {

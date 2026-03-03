@@ -152,8 +152,8 @@ export function GroupSidebar({ onOpenSettings }: GroupSidebarProps) {
       {/* 分隔线 */}
       <div className="w-6 h-px bg-white/20 mx-auto my-1" />
 
-      {/* 添加分组 - 只有在少于 20 个分组时才显示 */}
-      {groups.length < 20 && (
+      {/* 添加分组 - 只有在少于 10 个分组时才显示 */}
+      {groups.length < 10 && (
         <div className="relative">
           <button
             onClick={() => state.setShowAddMenu(!state.showAddMenu)}

@@ -48,7 +48,7 @@ export class BookmarkService {
       // 2. Save to local cache (only for new bookmarks)
       if (!isExisting) {
         logger.log('[BookmarkService] 步骤2: 保存到本地缓存...');
-        await db.bookmarks.add({
+        await db.bookmarks.put({
           url: bookmark.url,
           title: bookmark.title,
           description: bookmark.description,
@@ -211,7 +211,7 @@ export class BookmarkService {
         });
       } else {
         // Create new tag
-        await db.tags.add({
+        await db.tags.put({
           name: tagName,
           count: 1,
           createdAt: Date.now()
@@ -224,8 +224,8 @@ export class BookmarkService {
    * Queue bookmark for later sync (offline mode)
    */
   private async queueForLaterSync(bookmark: BookmarkInput): Promise<void> {
-    await db.metadata.add({
-      key: `pending_${Date.now()}`,
+    await db.metadata.put({
+      key: `pending_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       value: bookmark,
       updatedAt: Date.now()
     });

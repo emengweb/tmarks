@@ -12,26 +12,39 @@ export class CacheManager {
     const startTime = Date.now();
 
     try {
+      console.log('[CacheManager] 开始完全同步...');
+      
       // 1. Fetch and cache tags
       const tags = await bookmarkAPI.getTags();
       await db.tags.clear();
-      await db.tags.bulkAdd(tags);
+      await db.tags.bulkPut(tags);  // 使用 bulkPut 避免唯一约束冲突
+      console.log(`[CacheManager] 同步标签完成: ${tags.length} 个`);
 
-      // 2. Fetch and cache bookmarks (paginated)
-      let page = 1;
+      // 2. Fetch and cache bookmarks (cursor-based pagination)
+      let cursor: string | undefined = undefined;
       let totalBookmarks = 0;
+      let pageNum = 1;
       await db.bookmarks.clear();
+      console.log('[CacheManager] 已清空本地书签缓存');
 
-      while (page <= PAGINATION.MAX_PAGES) { // Safety limit
-        const { bookmarks, hasMore } = await bookmarkAPI.getBookmarks(page, PAGINATION.DEFAULT_PAGE_SIZE);
+      while (pageNum <= PAGINATION.MAX_PAGES) { // Safety limit
+        const { bookmarks, hasMore, nextCursor } = await bookmarkAPI.getBookmarks(cursor, PAGINATION.DEFAULT_PAGE_SIZE);
+        console.log(`[CacheManager] 第 ${pageNum} 页: 获取 ${bookmarks.length} 个书签, hasMore: ${hasMore}, nextCursor: ${nextCursor || 'null'}`);
 
         if (bookmarks.length > 0) {
-          await db.bookmarks.bulkAdd(bookmarks);
+          // 使用 bulkPut 而不是 bulkAdd，避免唯一约束冲突
+          // bulkPut 会自动更新已存在的记录
+          await db.bookmarks.bulkPut(bookmarks);
           totalBookmarks += bookmarks.length;
         }
 
-        if (!hasMore) break;
-        page++;
+        if (!hasMore) {
+          console.log(`[CacheManager] 同步完成，共 ${totalBookmarks} 个书签`);
+          break;
+        }
+        
+        cursor = nextCursor;
+        pageNum++;
       }
 
       // 3. Update metadata
@@ -50,6 +63,7 @@ export class CacheManager {
       await tagRecommender.refreshContextFromDB();
 
       const duration = Date.now() - startTime;
+      console.log(`[CacheManager] 同步耗时: ${duration}ms`);
 
       return {
         success: true,
@@ -60,6 +74,25 @@ export class CacheManager {
         }
       };
     } catch (error) {
+      console.error('[CacheManager] 同步失败:', error);
+      
+      // 如果是数据库错误，尝试重置数据库
+      if (error instanceof Error && 
+          (error.message.includes('Backend aborted') || 
+           error.message.includes('InvalidStateError'))) {
+        console.log('[CacheManager] 检测到数据库损坏，尝试重置...');
+        try {
+          await db.resetDatabase();
+          console.log('[CacheManager] 数据库重置成功，请重新同步');
+          return {
+            success: false,
+            error: '数据库已重置，请重新点击同步按钮'
+          };
+        } catch (resetError) {
+          console.error('[CacheManager] 数据库重置失败:', resetError);
+        }
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

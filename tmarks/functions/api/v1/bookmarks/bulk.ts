@@ -122,38 +122,6 @@ export const onRequestPatch: PagesFunction<Env, RouteParams, AuthContext>[] = [
         break
       }
 
-      case 'archive': {
-        const result = await db
-          .prepare(
-            `UPDATE bookmarks
-             SET is_archived = 1, updated_at = datetime('now')
-             WHERE id IN (${placeholders})
-               AND user_id = ?
-               AND deleted_at IS NULL`
-          )
-          .bind(...bookmark_ids, userId)
-          .run()
-
-        affectedCount = result.meta.changes || 0
-        break
-      }
-
-      case 'unarchive': {
-        const result = await db
-          .prepare(
-            `UPDATE bookmarks
-             SET is_archived = 0, updated_at = datetime('now')
-             WHERE id IN (${placeholders})
-               AND user_id = ?
-               AND deleted_at IS NULL`
-          )
-          .bind(...bookmark_ids, userId)
-          .run()
-
-        affectedCount = result.meta.changes || 0
-        break
-      }
-
       case 'update_tags': {
         // Verify all bookmarks belong to the user
         const verifyResult = await db

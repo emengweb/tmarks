@@ -22,7 +22,6 @@ interface CreateBookmarkRequest {
   tag_ids?: string[]  // 兼容旧版：标签 ID 数组
   tags?: string[]     // 新版：标签名称数组（推荐）
   is_pinned?: boolean
-  is_archived?: boolean
   is_public?: boolean
 }
 
@@ -42,10 +41,9 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
       // 解析查询参数
       const keyword = url.searchParams.get('keyword') || ''
       const tagIds = url.searchParams.get('tags')?.split(',').filter(Boolean) || []
-      const pageSize = Math.min(parseInt(url.searchParams.get('page_size') || '30'), 100)
+      const pageSize = Math.min(parseInt(url.searchParams.get('page_size') || '100'), 100)
       const pageCursor = url.searchParams.get('page_cursor') || ''
       const sortBy = url.searchParams.get('sort') || 'created' // created, updated, pinned, popular
-      const isArchived = url.searchParams.get('archived') === 'true'
       const isPinned = url.searchParams.get('pinned') === 'true'
 
       // 解析复合游标（格式：isPinned|sortValue|id 或 isPinned|sortValue1|sortValue2|id）
@@ -77,7 +75,6 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
       const queryParams: QueryParams = {
         keyword: keyword || undefined,
         tags: tagIds.length > 0 ? tagIds : undefined,
-        archived: isArchived || undefined,
         pinned: isPinned || undefined,
         sort: sortBy !== 'created' ? sortBy : undefined,
         page_cursor: pageCursor || undefined,
@@ -109,12 +106,6 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
       // 构建查询条件（不包含占位符的参数值）
       const conditions: string[] = ['b.user_id = ?', 'b.deleted_at IS NULL']
       const conditionParams: SQLParam[] = [userId]
-
-      if (isArchived) {
-        conditions.push('b.is_archived = 1')
-      } else {
-        conditions.push('b.is_archived = 0')
-      }
 
       if (isPinned) {
         conditions.push('b.is_pinned = 1')
@@ -243,6 +234,9 @@ export const onRequestGet: PagesFunction<Env, RouteParams, AuthContext>[] = [
 
       // 执行查询
       const { results } = await context.env.DB.prepare(query).bind(...params).all<BookmarkRow>()
+
+      // 调试日志
+      console.log(`[Bookmarks V1 API] User: ${userId}, Query returned: ${results.length} bookmarks, pageSize: ${pageSize}`)
 
       // 判断是否有下一页
       const hasMore = results.length > pageSize
@@ -428,7 +422,6 @@ export const onRequestPost: PagesFunction<Env, RouteParams, AuthContext>[] = [
       const now = new Date().toISOString()
       let bookmarkId: string
       const isPinned = body.is_pinned ? 1 : 0
-      const isArchived = body.is_archived ? 1 : 0
       const isPublic = body.is_public ? 1 : 0
 
       // 如果有封面图且配置了 R2 bucket，上传到 R2
@@ -498,7 +491,7 @@ export const onRequestPost: PagesFunction<Env, RouteParams, AuthContext>[] = [
         await context.env.DB.prepare(
           `UPDATE bookmarks
            SET title = ?, description = ?, cover_image = ?, cover_image_id = ?, favicon = ?,
-               is_pinned = ?, is_archived = ?, is_public = ?,
+               is_pinned = ?, is_public = ?,
                deleted_at = NULL, updated_at = ?
            WHERE id = ?`
         )
@@ -509,7 +502,6 @@ export const onRequestPost: PagesFunction<Env, RouteParams, AuthContext>[] = [
             coverImageId,
             favicon,
             isPinned,
-            isArchived,
             isPublic,
             now,
             bookmarkId
@@ -526,8 +518,8 @@ export const onRequestPost: PagesFunction<Env, RouteParams, AuthContext>[] = [
         bookmarkId = bookmarkUuid
 
         await context.env.DB.prepare(
-          `INSERT INTO bookmarks (id, user_id, title, url, description, cover_image, cover_image_id, favicon, is_pinned, is_archived, is_public, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO bookmarks (id, user_id, title, url, description, cover_image, cover_image_id, favicon, is_pinned, is_public, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
           .bind(
             bookmarkUuid,
@@ -539,7 +531,6 @@ export const onRequestPost: PagesFunction<Env, RouteParams, AuthContext>[] = [
             coverImageId,
             favicon,
             isPinned,
-            isArchived,
             isPublic,
             now,
             now
